@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=TLP Panel
+Name[tr]=TLP Paneli
+Comment=Live power status and quick actions for TLP
+Comment[tr]=TLP için canlı güç durumu ve hızlı eylemler
+Exec=tlp-panel
+Icon=io.github.timemrah.TlpPanel
+Terminal=false
+Categories=System;Monitor;
+Keywords=power;battery;tlp;laptop;energy;
+Keywords[tr]=güç;pil;tlp;dizüstü;enerji;
+StartupNotify=true
+StartupWMClass=io.github.timemrah.TlpPanel

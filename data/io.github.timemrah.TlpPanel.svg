@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- battery shell -->
+  <rect x="14" y="34" width="88" height="60" rx="10" fill="none" stroke="#3584e4" stroke-width="7"/>
+  <!-- terminal cap -->
+  <rect x="106" y="52" width="10" height="24" rx="4" fill="#3584e4"/>
+  <!-- charge bolt -->
+  <path d="M64 44 L44 70 h14 l-6 20 22 -28 h-14 z" fill="#f6d32d" stroke="#e5a50a" stroke-width="2" stroke-linejoin="round"/>
+</svg>

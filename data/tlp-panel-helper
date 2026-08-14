@@ -1,0 +1,239 @@
+#!/bin/sh
+# Privileged helper for TLP Panel.
+#
+# Runs as root through polkit. It accepts a fixed set of verbs with strictly
+# validated arguments, and only ever writes keys from a known allowlist into
+# its own drop-in file. Never pass user input to a shell here.
+
+set -eu
+
+CONF_FILE=/etc/tlp.d/90-tlp-panel.conf
+STATE_DIR=/var/lib/tlp-panel
+ABM_STATE=$STATE_DIR/abm-supported
+TLP_BIN=/usr/sbin/tlp
+
+die() {
+    echo "$1" >&2
+    exit 1
+}
+
+is_percent() {
+    case "$1" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    [ "$1" -ge 0 ] && [ "$1" -le 100 ]
+}
+
+is_abm_level() {
+    case "$1" in
+        0|1|2|3|4) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+is_on_off() {
+    case "$1" in
+        on|off) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+is_battery_name() {
+    case "$1" in
+        BAT[0-9]|BAT[0-9][0-9]) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# put_key KEY VALUE — replace or append one key, leaving the rest untouched.
+put_key() {
+    key="$1"
+    value="$2"
+
+    umask 022
+    mkdir -p /etc/tlp.d
+    if [ ! -f "$CONF_FILE" ]; then
+        cat > "$CONF_FILE" <<'EOF'
+# Written by TLP Panel. Values you change in the app land here.
+# Edit freely; the app only rewrites the keys it manages.
+EOF
+    fi
+
+    tmp="${CONF_FILE}.tmp.$$"
+    grep -v "^${key}=" "$CONF_FILE" > "$tmp" || true
+    printf '%s=%s\n' "$key" "$value" >> "$tmp"
+    mv "$tmp" "$CONF_FILE"
+    chmod 644 "$CONF_FILE"
+}
+
+is_on_auto() {
+    case "$1" in
+        on|auto) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Re-apply TLP settings without changing whether the profile is manual.
+reapply_tlp() {
+    [ -x "$TLP_BIN" ] || return 0
+    mode="$(tlp-stat -s 2>/dev/null | awk -F= '/^Mode/ {gsub(/ /, "", $2); print tolower($2)}')"
+    case "$mode" in
+        ac\(manual\)) "$TLP_BIN" ac >/dev/null 2>&1 || true ;;
+        battery\(manual\)) "$TLP_BIN" bat >/dev/null 2>&1 || true ;;
+        *) "$TLP_BIN" start >/dev/null 2>&1 || true ;;
+    esac
+}
+
+# Adaptive backlight runs on the display microcontroller. Without its
+# firmware the sysfs knob accepts values and changes nothing, so record
+# whether it can work at all — the panel reads this without root.
+probe_abm() {
+    supported=0
+    for info in /sys/kernel/debug/dri/*/amdgpu_firmware_info; do
+        [ -r "$info" ] || continue
+        dmcu=$(awk -F'[:,]' '/^DMCU feature version/ {gsub(/ /, "", $2); print $2; exit}' "$info")
+        dmcub=$(awk -F'[:,]' '/^DMCUB feature version/ {gsub(/ /, "", $4); print $4; exit}' "$info")
+        [ -n "${dmcu:-}" ] && [ "$dmcu" != "0" ] && supported=1
+        [ -n "${dmcub:-}" ] && [ "$dmcub" != "0x00000000" ] && [ "$dmcub" != "0" ] && supported=1
+    done
+
+    # No panel knob at all means the question does not arise.
+    knob=0
+    for pps in /sys/class/drm/card*/*/amdgpu/panel_power_savings; do
+        [ -e "$pps" ] && knob=1
+    done
+    [ "$knob" = "0" ] && supported=0
+
+    mkdir -p "$STATE_DIR"
+    printf '%s\n' "$supported" > "$ABM_STATE"
+    chmod 644 "$ABM_STATE"
+    echo "$supported"
+}
+
+cmd_probe() {
+    result=$(probe_abm)
+    echo "adaptive backlight supported: ${result}"
+}
+
+cmd_set_charge() {
+    start="${1:-}"
+    stop="${2:-}"
+    battery="${3:-BAT0}"
+
+    is_percent "$start" || die "invalid start threshold"
+    is_percent "$stop" || die "invalid stop threshold"
+    is_battery_name "$battery" || die "invalid battery name"
+    [ "$start" -lt "$stop" ] || die "start threshold must be below stop threshold"
+
+    put_key "START_CHARGE_THRESH_${battery}" "$start"
+    put_key "STOP_CHARGE_THRESH_${battery}" "$stop"
+
+    [ -x "$TLP_BIN" ] && "$TLP_BIN" setcharge "$start" "$stop" "$battery" >/dev/null 2>&1 || true
+    echo "charge thresholds set to ${start}-${stop} for ${battery}"
+}
+
+cmd_set_abm() {
+    ac="${1:-}"
+    bat="${2:-}"
+
+    is_abm_level "$ac" || die "invalid AC backlight level"
+    is_abm_level "$bat" || die "invalid battery backlight level"
+
+    put_key AMDGPU_ABM_LEVEL_ON_AC "$ac"
+    put_key AMDGPU_ABM_LEVEL_ON_BAT "$bat"
+
+    # Re-running TLP applies the value and regenerates /run/tlp/run.conf,
+    # which is what the panel reads back.
+    reapply_tlp
+    probe_abm >/dev/null
+
+    echo "adaptive backlight set to ac=${ac} bat=${bat}"
+}
+
+cmd_set_wifi() {
+    ac="${1:-}"
+    bat="${2:-}"
+
+    is_on_off "$ac" || die "invalid AC Wi-Fi power saving value"
+    is_on_off "$bat" || die "invalid battery Wi-Fi power saving value"
+
+    put_key WIFI_PWR_ON_AC "$ac"
+    put_key WIFI_PWR_ON_BAT "$bat"
+
+    reapply_tlp
+
+    echo "wifi power saving set to ac=${ac} bat=${bat}"
+}
+
+cmd_set_runtime_pm() {
+    ac="${1:-}"
+    bat="${2:-}"
+
+    is_on_auto "$ac" || die "invalid AC runtime power management value"
+    is_on_auto "$bat" || die "invalid battery runtime power management value"
+
+    put_key RUNTIME_PM_ON_AC "$ac"
+    put_key RUNTIME_PM_ON_BAT "$bat"
+
+    # Device-by-device application follows TLP's own denylist rules, so let
+    # TLP do it rather than reimplementing them here.
+    reapply_tlp
+
+    echo "runtime power management set to ac=${ac} bat=${bat}"
+}
+
+# Applying a system mode also sets the two sub-settings it implies, so the
+# panel needs one authorisation instead of three.
+cmd_apply_preset() {
+    preset="${1:-}"
+
+    case "$preset" in
+        auto)
+            put_key WIFI_PWR_ON_AC off
+            put_key WIFI_PWR_ON_BAT on
+            put_key RUNTIME_PM_ON_AC on
+            put_key RUNTIME_PM_ON_BAT auto
+            tlp_verb=start
+            ;;
+        bat)
+            put_key WIFI_PWR_ON_AC on
+            put_key WIFI_PWR_ON_BAT on
+            put_key RUNTIME_PM_ON_AC auto
+            put_key RUNTIME_PM_ON_BAT auto
+            tlp_verb=bat
+            ;;
+        ac)
+            put_key WIFI_PWR_ON_AC off
+            put_key WIFI_PWR_ON_BAT off
+            put_key RUNTIME_PM_ON_AC on
+            put_key RUNTIME_PM_ON_BAT on
+            tlp_verb=ac
+            ;;
+        *)
+            die "unknown preset"
+            ;;
+    esac
+
+    [ -x "$TLP_BIN" ] && "$TLP_BIN" "$tlp_verb" >/dev/null 2>&1 || true
+    echo "system mode ${preset} applied"
+}
+
+cmd_clear() {
+    rm -f "$CONF_FILE"
+    echo "TLP Panel configuration removed"
+}
+
+verb="${1:-}"
+[ -n "$verb" ] || die "no command given"
+shift || true
+
+case "$verb" in
+    set-charge) cmd_set_charge "$@" ;;
+    set-abm) cmd_set_abm "$@" ;;
+    set-wifi) cmd_set_wifi "$@" ;;
+    set-runtime-pm) cmd_set_runtime_pm "$@" ;;
+    apply-preset) cmd_apply_preset "$@" ;;
+    probe) cmd_probe ;;
+    clear) cmd_clear ;;
+    *) die "unknown command" ;;
+esac

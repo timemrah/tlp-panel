@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    # Record whether adaptive backlight can take effect, so the panel can say
+    # so without needing privileges itself.
+    /usr/libexec/tlp-panel-helper probe >/dev/null 2>&1 || true
+fi
+
+#DEBHELPER#

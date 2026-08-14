@@ -1,0 +1,9 @@
+src/**/__pycache__/
+__pycache__/
+*.pyc
+debian/tlp-panel/
+debian/.debhelper/
+debian/files
+debian/debhelper-build-stamp
+debian/*.substvars
+debian/*.log

@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "purge" ]; then
+    rm -rf /var/lib/tlp-panel
+    rm -f /etc/tlp.d/90-tlp-panel.conf
+fi
+
+#DEBHELPER#

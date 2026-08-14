@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+
+  <vendor>TLP Panel</vendor>
+  <vendor_url>https://github.com/timemrah/tlp-panel</vendor_url>
+  <icon_name>io.github.timemrah.TlpPanel</icon_name>
+
+  <action id="io.github.timemrah.tlppanel.run-tlp">
+    <description>Apply a TLP power profile</description>
+    <description xml:lang="tr">TLP güç profili uygula</description>
+    <message>Authentication is required to change power management settings</message>
+    <message xml:lang="tr">Güç yönetimi ayarlarını değiştirmek için yetkilendirme gerekiyor</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/sbin/tlp</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+
+  <action id="io.github.timemrah.tlppanel.set-charge">
+    <description>Change the battery charge limit</description>
+    <description xml:lang="tr">Pil şarj sınırını değiştir</description>
+    <message>Authentication is required to change the battery charge limit</message>
+    <message xml:lang="tr">Pil şarj sınırını değiştirmek için yetkilendirme gerekiyor</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/tlp-panel-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+
+</policyconfig>

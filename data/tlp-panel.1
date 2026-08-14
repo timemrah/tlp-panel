@@ -1,0 +1,38 @@
+.TH TLP\-PANEL 1 "August 2026" "tlp-panel 0.1.0" "User Commands"
+.SH NAME
+tlp\-panel \- live power status and quick actions for TLP
+.SH SYNOPSIS
+.B tlp\-panel
+.SH DESCRIPTION
+.B tlp\-panel
+is a graphical panel for laptops running
+.BR tlp (8).
+It shows the current power draw in watts, battery charge, health and cycle
+count, and the estimated runtime at the present rate.
+.PP
+It also changes the settings people adjust most often: the TLP profile, the
+battery charge limit, Wi\-Fi power saving, runtime power management for idle
+devices, and AMD adaptive backlight.
+.PP
+Readings come from sysfs and
+.IR /run/tlp ,
+all readable without privileges, so the interface runs as a normal user.
+Changes are applied through
+.BR pkexec (1)
+by the helper at
+.IR /usr/libexec/tlp\-panel\-helper ,
+which accepts a fixed set of verbs with validated arguments and writes only to
+.IR /etc/tlp.d/90\-tlp\-panel.conf .
+.SH FILES
+.TP
+.I /etc/tlp.d/90-tlp-panel.conf
+Settings written by the panel. Read by TLP after its own configuration, so
+these values win.
+.TP
+.I /var/lib/tlp-panel/abm-supported
+Whether adaptive backlight can take effect on this display.
+.SH SEE ALSO
+.BR tlp (8),
+.BR tlp-stat (8)
+.SH AUTHOR
+Mehmet Emrah Tunçel
