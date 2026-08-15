@@ -1,3 +1,21 @@
+tlp-panel (0.4.0) unstable; urgency=medium
+
+  * The main menu can now pin the interface language to English or Turkish
+    instead of following the locale. The choice is stored per user and read at
+    startup.
+  * The battery graphic reports state rather than just level: green while
+    charging with motes drifting in, a highlight that sweeps the way the charge
+    is going, red from 10% down instead of only at empty, and a slow pulse
+    below 5%.
+  * The fill now meets the outline with no gap and keeps a straight right-hand
+    edge at every level.
+  * The CPU speed limit scale says gigahertz.
+  * python3-gi-cairo is now a declared dependency. The drawing has always
+    needed it; the package only worked because something else usually pulls it
+    in.
+
+ -- Mehmet Emrah Tuncel <eylulsibelemrah@gmail.com>  Sun, 16 Aug 2026 03:00:00 +0300
+
 tlp-panel (0.3.0) unstable; urgency=medium
 
   * New CPU speed limit control: a slider over the frequency steps the scaling

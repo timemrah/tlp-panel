@@ -75,7 +75,7 @@
     <screenshot type="default">
       <caption>Power draw, battery, system mode and estimated runtime</caption>
       <caption xml:lang="tr">Güç çekişi, pil, sistem kipi ve tahmini süre</caption>
-      <image type="source" width="1616" height="1758">https://raw.githubusercontent.com/timemrah/tlp-panel/master/docs/screenshot.png</image>
+      <image type="source" width="2202" height="1758">https://raw.githubusercontent.com/timemrah/tlp-panel/master/docs/screenshot.png</image>
     </screenshot>
   </screenshots>
 
@@ -119,6 +119,17 @@
   </requires>
 
   <releases>
+    <release version="0.4.0" date="2026-08-16">
+      <description>
+        <p>
+          The battery graphic now shows what the battery is doing, not just how
+          full it is: it turns green while charging, a highlight sweeps the way
+          the charge is going, and a low battery reddens and pulses. The main
+          menu can also pin the interface language instead of following the
+          system locale.
+        </p>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-08-16">
       <description>
         <p>

@@ -1,6 +1,6 @@
 # Maintainer: Mehmet Emrah Tunçel <timemrah@gmail.com>
 pkgname=tlp-panel
-pkgver=0.3.0
+pkgver=0.4.0
 pkgrel=1
 pkgdesc="Live power status and quick actions for TLP"
 arch=('any')
@@ -9,7 +9,7 @@ license=('GPL-3.0-or-later')
 depends=('python' 'python-gobject' 'python-cairo' 'gtk4' 'libadwaita' 'tlp' 'polkit')
 makedepends=('desktop-file-utils' 'appstream')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('222889a11252d75671a8a58976a6f77673d80c4d0e1b4a61adfab68d1f4888bd')
+sha256sums=('SKIP')
 
 check() {
   cd "$pkgname-$pkgver"
