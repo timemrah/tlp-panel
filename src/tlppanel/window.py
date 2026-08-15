@@ -329,7 +329,15 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         self._cpu_scale.set_draw_value(False)
         self._cpu_scale.set_hexpand(True)
         for index, khz in enumerate(steps):
-            label = _format_ghz(khz) if self._label_cpu_step(index, len(steps)) else None
+            if not self._label_cpu_step(index, len(steps)):
+                self._cpu_scale.add_mark(index, Gtk.PositionType.BOTTOM, None)
+                continue
+            # The unit rides on the last mark alone: the bare numbers beside it
+            # read as the same scale, and it stays legible however many steps
+            # the processor turns out to have.
+            label = _format_ghz(khz)
+            if index == len(steps) - 1:
+                label = f"{label} GHz"
             self._cpu_scale.add_mark(index, Gtk.PositionType.BOTTOM, label)
         self._cpu_scale.connect("value-changed", self._on_cpu_scale_changed)
 
