@@ -1,3 +1,17 @@
+tlp-panel (0.2.3) unstable; urgency=medium
+
+  * Ship an AppStream metainfo file. Without one the package installs but stays
+    invisible in GNOME Software and KDE Discover; with it the app appears there
+    by name, icon, screenshot and release notes.
+  * Package the app for the AUR and publish a signed apt repository on GitHub
+    Pages, so Debian and Ubuntu get updates through apt rather than a manual
+    download each time.
+  * Build the .deb in CI when a release is published, rather than by hand.
+  * desktop-file-utils and appstream are now build dependencies; the build ran
+    desktop-file-validate without declaring it.
+
+ -- Mehmet Emrah Tunçel <timemrah@gmail.com>  Sat, 15 Aug 2026 16:20:00 +0300
+
 tlp-panel (0.2.2) unstable; urgency=medium
 
   * Replace AdwAboutDialog with a hand-built dialog. The stock widget renders
