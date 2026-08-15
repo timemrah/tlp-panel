@@ -646,9 +646,11 @@ class TlpPanelWindow(Adw.ApplicationWindow):
             status_key = (battery.status or "unknown").lower()
             status = _(STATUS_LABELS.get(status_key, battery.status or ""))
             parts = [status]
-            # Only meaningful while discharging, so it appears then and not
-            # while the battery is charging or already full.
-            remaining = format_duration(battery.runtime_hours)
+            # Time left either way: until empty when discharging, until the
+            # charge limit when charging.
+            remaining = format_duration(battery.runtime_hours) or format_duration(
+                battery.charge_hours
+            )
             if remaining:
                 parts.append(remaining)
             self._percent_label.set_label(" · ".join(parts))

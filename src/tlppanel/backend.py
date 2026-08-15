@@ -91,6 +91,27 @@ class Battery:
             return None
         return self.energy_wh / self.power_w
 
+    @property
+    def charge_hours(self) -> float | None:
+        """Hours until charging stops.
+
+        Aims at the charge limit rather than a full pack, because that is
+        where the firmware will actually stop.
+        """
+        if not self.charging or not self.power_w or self.power_w <= 0:
+            return None
+        if not self.energy_full_wh or self.energy_wh is None:
+            return None
+
+        target = self.energy_full_wh
+        if self.stop_threshold:
+            target = self.energy_full_wh * self.stop_threshold / 100.0
+
+        remaining = target - self.energy_wh
+        if remaining <= 0:
+            return None
+        return remaining / self.power_w
+
     def projected_hours(self, energy_wh: float) -> float | None:
         """Hours a given amount of energy would last at the current draw.
 

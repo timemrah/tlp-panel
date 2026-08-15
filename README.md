@@ -19,7 +19,8 @@ controls most people actually change on the right.
 - **Charge, health and cycle count** — health as the current full capacity
   against the design capacity, so you can see how the pack has aged.
 - **Estimated runtime** at the current draw: right now, at a full charge, and
-  at your charge limit when one is set.
+  at your charge limit when one is set. While charging it counts down to the
+  charge limit instead, since that is where the firmware will stop.
 
 ## What it changes
 
