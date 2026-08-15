@@ -275,6 +275,8 @@ class TlpPanelWindow(Adw.ApplicationWindow):
             header.append(self._info_button(info))
 
         block.append(header)
+        # Some cards retitle themselves as the machine's state changes.
+        block.title_label = label
 
         control.set_vexpand(True)
         control.set_valign(Gtk.Align.CENTER)
@@ -465,7 +467,9 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         row, self._val_runtime_full = self._property_row(_("At 100%"))
         content.append(row)
 
-        inner.append(self._control_block(_("Estimated runtime"), content))
+        block = self._control_block(_("Estimated runtime"), content)
+        self._runtime_title = block.title_label
+        inner.append(block)
         return card
 
     @staticmethod
@@ -778,23 +782,42 @@ class TlpPanelWindow(Adw.ApplicationWindow):
                 value.set_label("—")
             return
 
+        limit = battery.stop_threshold
+        capped_shown = bool(battery.energy_full_wh and limit and limit < 100)
+        self._row_runtime_capped.set_visible(capped_shown)
+
+        if battery.charging:
+            # Charging answers "when will it be there", not "how long will it
+            # last": with the cable in, power_now is the charge rate, so the
+            # machine's own consumption is unknown.
+            self._runtime_title.set_label(_("Estimated charging time"))
+            self._val_runtime_now.set_label("—")
+
+            if capped_shown:
+                to_limit = battery.charge_hours_to(battery.limit_energy_wh)
+                self._val_runtime_capped.set_label(
+                    f"{format_duration(to_limit) or '—'}  ({limit}%)"
+                )
+            if battery.energy_full_wh:
+                to_full = battery.charge_hours_to(battery.energy_full_wh)
+                self._val_runtime_full.set_label(format_duration(to_full) or "—")
+            else:
+                self._val_runtime_full.set_label("—")
+            return
+
+        self._runtime_title.set_label(_("Estimated runtime"))
         self._val_runtime_now.set_label(format_duration(battery.runtime_hours) or "—")
 
         if battery.energy_full_wh:
-            full = format_duration(battery.projected_hours(battery.energy_full_wh))
-            self._val_runtime_full.set_label(full or "—")
-            if battery.stop_threshold and battery.stop_threshold < 100:
-                capped_wh = battery.energy_full_wh * battery.stop_threshold / 100.0
-                capped = format_duration(battery.projected_hours(capped_wh))
+            if capped_shown:
+                capped = battery.projected_hours(battery.limit_energy_wh)
                 self._val_runtime_capped.set_label(
-                    f"{capped or '—'}  ({battery.stop_threshold}%)"
+                    f"{format_duration(capped) or '—'}  ({limit}%)"
                 )
-                self._row_runtime_capped.set_visible(True)
-            else:
-                self._row_runtime_capped.set_visible(False)
+            full = battery.projected_hours(battery.energy_full_wh)
+            self._val_runtime_full.set_label(format_duration(full) or "—")
         else:
             self._val_runtime_full.set_label("—")
-            self._row_runtime_capped.set_visible(False)
 
     def _update_mode(self, state: backend.PowerState) -> None:
         """Reflect the active profile without re-triggering the toggle handler."""
