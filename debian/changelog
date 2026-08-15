@@ -1,3 +1,19 @@
+tlp-panel (0.2.0) unstable; urgency=medium
+
+  * Estimated runtime card now answers the charging question too: it retitles
+    itself by whether the cable is in, and counts up to the charge limit and
+    to a full pack while charging.
+  * Runtime projections are made only while discharging. Plugged in, power_now
+    reports the charge rate, and dividing by it produced a confident but
+    meaningless figure.
+  * The battery card counts down to the charge limit while charging.
+  * The headline watt reading holds its last value through the second or two
+    after the cable moves, when the controller reports zero.
+  * Turkish card titles capitalised consistently.
+  * English screenshot in the README.
+
+ -- Mehmet Emrah Tunçel <timemrah@gmail.com>  Sat, 15 Aug 2026 03:25:00 +0300
+
 tlp-panel (0.1.0) unstable; urgency=medium
 
   * Initial release.
