@@ -20,7 +20,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "Battery": "Pil",
         "System mode": "Sistem Modu",
         "Health": "Sağlık",
-        "Cycles": "Şarj döngüsü",
+        "Cycles": "Şarj Döngüsü",
         "Charge limit": "Şarj Sınırı",
         "Charge limit set to": "Şarj sınırı ayarlandı:",
         "Lithium batteries age faster when kept near a full charge. "
@@ -88,6 +88,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "No battery found": "Pil bulunamadı",
         "Refresh": "Yenile",
         "About": "Hakkında",
+        "Project page": "Proje sayfası",
+        "Report an issue": "Sorun bildir",
+        "Licence: GPL-3.0-or-later": "Lisans: GPL-3.0 veya sonrası",
         "Authentication failed or was cancelled": "Yetkilendirme başarısız ya da iptal edildi",
         "Mode switched to automatic": "Otomatik moda geçildi",
         "Battery saving applied": "Tasarruf modu uygulandı",

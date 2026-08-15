@@ -70,7 +70,7 @@ sudo apt install tlp python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 polkitd
 ### From a .deb
 
 ```sh
-sudo apt install ./tlp-panel_0.2.1_all.deb
+sudo apt install ./tlp-panel_0.2.2_all.deb
 ```
 
 ### From source

@@ -1,3 +1,13 @@
+tlp-panel (0.2.2) unstable; urgency=medium
+
+  * Replace AdwAboutDialog with a hand-built dialog. The stock widget renders
+    its developer line as plain text, so the maintainer's address could
+    neither sit beside the name nor be a link; setting it as comments filed it
+    behind a Details page instead.
+  * Capitalise the battery cycle count row to match its neighbours.
+
+ -- Mehmet Emrah Tunçel <timemrah@gmail.com>  Sat, 15 Aug 2026 03:45:00 +0300
+
 tlp-panel (0.2.1) unstable; urgency=medium
 
   * Show the maintainer's address directly under the name in the About

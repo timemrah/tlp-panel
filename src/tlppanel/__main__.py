@@ -9,9 +9,9 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Adw, Gio, Gtk  # noqa: E402
+from gi.repository import Adw, Gio  # noqa: E402
 
-from . import APP_ID, __version__  # noqa: E402
+from . import APP_ID, about  # noqa: E402
 from .i18n import _  # noqa: E402
 from .window import TlpPanelWindow  # noqa: E402
 
@@ -28,25 +28,13 @@ class TlpPanelApp(Adw.Application):
 
     def do_startup(self):  # noqa: N802 - GObject naming
         Adw.Application.do_startup(self)
-        about = Gio.SimpleAction.new("about", None)
-        about.connect("activate", self._on_about)
-        self.add_action(about)
+        about_action = Gio.SimpleAction.new("about", None)
+        about_action.connect("activate", self._on_about)
+        self.add_action(about_action)
 
     def _on_about(self, *_args) -> None:
-        dialog = Adw.AboutDialog(
-            application_name=_("TLP Panel"),
-            application_icon=APP_ID,
-            version=__version__,
-            developer_name="Mehmet Emrah Tunçel",
-            comments="timemrah@gmail.com",
-            developers=["Mehmet Emrah Tunçel <timemrah@gmail.com>"],
-            copyright="© 2026 Mehmet Emrah Tunçel",
-            license_type=Gtk.License.GPL_3_0,
-            website="https://github.com/timemrah/tlp-panel",
-            issue_url="https://github.com/timemrah/tlp-panel/issues",
-        )
         if self._window:
-            dialog.present(self._window)
+            about.build(self._window)
 
 
 def main() -> int:
