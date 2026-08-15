@@ -786,9 +786,11 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         capped_shown = bool(battery.energy_full_wh and limit and limit < 100)
         self._row_runtime_capped.set_visible(capped_shown)
 
-        if battery.charging:
-            # Charging answers "when will it be there", not "how long will it
-            # last": with the cable in, power_now is the charge rate, so the
+        # Keyed on the cable, not on whether current is flowing: a pack
+        # sitting at its charge limit reports "not charging", and the card
+        # should still be answering the charging question.
+        if state.on_ac:
+            # With the cable in, power_now is the charge rate, so the
             # machine's own consumption is unknown.
             self._runtime_title.set_label(_("Estimated charging time"))
             self._val_runtime_now.set_label("—")
