@@ -38,6 +38,7 @@ class TlpPanelApp(Adw.Application):
             application_icon=APP_ID,
             version=__version__,
             developer_name="Mehmet Emrah Tunçel",
+            comments="timemrah@gmail.com",
             developers=["Mehmet Emrah Tunçel <timemrah@gmail.com>"],
             copyright="© 2026 Mehmet Emrah Tunçel",
             license_type=Gtk.License.GPL_3_0,

@@ -1,3 +1,10 @@
+tlp-panel (0.2.1) unstable; urgency=medium
+
+  * Show the maintainer's address directly under the name in the About
+    dialog, rather than tucked into a Details section.
+
+ -- Mehmet Emrah Tunçel <timemrah@gmail.com>  Sat, 15 Aug 2026 03:32:00 +0300
+
 tlp-panel (0.2.0) unstable; urgency=medium
 
   * Estimated runtime card now answers the charging question too: it retitles
