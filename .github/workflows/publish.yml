@@ -29,7 +29,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            debhelper devscripts dpkg-dev desktop-file-utils appstream python3
+            build-essential debhelper devscripts dpkg-dev \
+            desktop-file-utils appstream python3
 
       - name: Build package
         run: dpkg-buildpackage -us -uc -b
@@ -41,11 +42,21 @@ jobs:
           ls -l dist
 
       - name: Attach to release
-        if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$TAG" dist/*.deb --clobber
+        run: |
+          # A manual run has no release payload; fall back to the newest release
+          # and refuse to attach a package that does not match its version.
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+          fi
+          VERSION=$(dpkg-parsechangelog -S Version)
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::built $VERSION but the release is $TAG"
+            exit 1
+          fi
+          gh release upload "$TAG" dist/*.deb --clobber
 
       - uses: actions/upload-artifact@v4
         with:
