@@ -1,0 +1,19 @@
+pkgbase = tlp-panel
+	pkgdesc = Live power status and quick actions for TLP
+	pkgver = 0.2.3
+	pkgrel = 1
+	url = https://github.com/timemrah/tlp-panel
+	arch = any
+	license = GPL-3.0-or-later
+	makedepends = desktop-file-utils
+	makedepends = appstream
+	depends = python
+	depends = python-gobject
+	depends = gtk4
+	depends = libadwaita
+	depends = tlp
+	depends = polkit
+	source = tlp-panel-0.2.3.tar.gz::https://github.com/timemrah/tlp-panel/archive/refs/tags/v0.2.3.tar.gz
+	sha256sums = SKIP
+
+pkgname = tlp-panel

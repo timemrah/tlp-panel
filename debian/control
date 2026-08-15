@@ -2,7 +2,10 @@ Source: tlp-panel
 Section: utils
 Priority: optional
 Maintainer: Mehmet Emrah Tunçel <timemrah@gmail.com>
-Build-Depends: debhelper-compat (= 13), python3
+Build-Depends: debhelper-compat (= 13),
+               python3,
+               desktop-file-utils,
+               appstream
 Standards-Version: 4.7.0
 Homepage: https://github.com/timemrah/tlp-panel
 Rules-Requires-Root: no

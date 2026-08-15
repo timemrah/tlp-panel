@@ -60,14 +60,32 @@ up. That is worse than not offering them. This app checks, and says so.
 
 ### Debian · Ubuntu
 
-Download the package from
-[**Releases**](https://github.com/timemrah/tlp-panel/releases/latest), then:
+Add the repository once, and updates arrive with the rest of your system:
 
 ```sh
-sudo apt install ./tlp-panel_0.2.2_all.deb
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo curl -fsSL -o /etc/apt/keyrings/tlp-panel.asc \
+  https://timemrah.github.io/tlp-panel/apt/tlp-panel.asc
+
+echo "deb [signed-by=/etc/apt/keyrings/tlp-panel.asc] https://timemrah.github.io/tlp-panel/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/tlp-panel.list
+
+sudo apt update
+sudo apt install tlp-panel
 ```
 
 Dependencies come with it. If TLP is not installed yet, `apt` pulls it in.
+
+Prefer a single file? Download the `.deb` from
+[**Releases**](https://github.com/timemrah/tlp-panel/releases/latest) and run
+`sudo apt install ./tlp-panel_*_all.deb` — but then each update is another
+download.
+
+### Arch Linux
+
+```sh
+yay -S tlp-panel
+```
 
 ### From source
 

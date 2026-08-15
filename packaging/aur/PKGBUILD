@@ -1,0 +1,23 @@
+# Maintainer: Mehmet Emrah Tunçel <timemrah@gmail.com>
+pkgname=tlp-panel
+pkgver=0.2.3
+pkgrel=1
+pkgdesc="Live power status and quick actions for TLP"
+arch=('any')
+url="https://github.com/timemrah/tlp-panel"
+license=('GPL-3.0-or-later')
+depends=('python' 'python-gobject' 'gtk4' 'libadwaita' 'tlp' 'polkit')
+makedepends=('desktop-file-utils' 'appstream')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+check() {
+  cd "$pkgname-$pkgver"
+  make check
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  make install DESTDIR="$pkgdir" PREFIX=/usr
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

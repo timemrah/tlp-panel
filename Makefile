@@ -21,6 +21,7 @@ check:
 	$(PYTHON) -m compileall -q src/tlppanel
 	@desktop-file-validate data/$(APP_ID).desktop && echo "desktop file OK"
 	@$(PYTHON) -c "import xml.dom.minidom as m; m.parse('data/$(APP_ID).policy')" && echo "polkit policy OK"
+	@appstreamcli validate --no-net data/$(APP_ID).metainfo.xml
 	@sh -n data/tlp-panel-helper && echo "helper script OK"
 	@$(PYTHON) tools/check-translations.py
 
@@ -32,6 +33,8 @@ install:
 	sed -i 's|@LIBDIR@|$(PREFIX)/lib/tlp-panel|' $(BINDIR)/tlp-panel
 	install -d $(DATADIR)/applications
 	install -m 644 data/$(APP_ID).desktop $(DATADIR)/applications/
+	install -d $(DATADIR)/metainfo
+	install -m 644 data/$(APP_ID).metainfo.xml $(DATADIR)/metainfo/
 	install -d $(DATADIR)/icons/hicolor/scalable/apps
 	install -m 644 data/$(APP_ID).svg $(DATADIR)/icons/hicolor/scalable/apps/
 	install -d $(POLKITDIR)
@@ -51,6 +54,7 @@ uninstall:
 	rm -rf $(LIBDIR)
 	rm -f $(BINDIR)/tlp-panel
 	rm -f $(DATADIR)/applications/$(APP_ID).desktop
+	rm -f $(DATADIR)/metainfo/$(APP_ID).metainfo.xml
 	rm -f $(DATADIR)/icons/hicolor/scalable/apps/$(APP_ID).svg
 	rm -f $(DATADIR)/man/man1/tlp-panel.1
 	rm -f $(POLKITDIR)/$(APP_ID).policy

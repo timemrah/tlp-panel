@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TLP Panel</title>
+<meta name="description" content="Live power status and quick actions for TLP — a GTK4 panel for Linux laptops.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1b1b1b;
+    --muted: #5b5b5b;
+    --line: #e2e2e2;
+    --code-bg: #f5f5f5;
+    --accent: #a81d33;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --fg: #ececec;
+      --muted: #a0a0a8;
+      --line: #2c2c33;
+      --code-bg: #202027;
+      --accent: #ff6b81;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 3rem 1.25rem 5rem;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Cantarell, sans-serif;
+  }
+  main { max-width: 46rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 3rem; }
+  h1 { font-size: 2.5rem; margin: 0.5rem 0 0.25rem; letter-spacing: -0.02em; }
+  .tagline { color: var(--muted); font-size: 1.1rem; margin: 0; }
+  h2 { font-size: 1.25rem; margin: 2.5rem 0 0.75rem; }
+  h3 { font-size: 1rem; margin: 1.75rem 0 0.5rem; color: var(--muted); font-weight: 600; }
+  img.shot {
+    display: block; width: 100%; max-width: 34rem; margin: 2rem auto 0;
+    border: 1px solid var(--line); border-radius: 12px;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.85rem; margin: 0.5rem 0;
+  }
+  code { font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; }
+  p code { background: var(--code-bg); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.9em; }
+  a { color: var(--accent); }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 3rem 0; }
+  footer { color: var(--muted); font-size: 0.9rem; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>TLP Panel</h1>
+  <p class="tagline">See what your laptop is doing with power — and change it, without a terminal.</p>
+  <img class="shot" alt="TLP Panel showing power draw, battery, system mode and estimated runtime"
+       src="https://raw.githubusercontent.com/timemrah/tlp-panel/master/docs/screenshot.png">
+</header>
+
+<h2>Install on Debian or Ubuntu</h2>
+
+<p>Add the repository once, and updates arrive with the rest of your system.</p>
+
+<pre><code>sudo install -d -m 0755 /etc/apt/keyrings
+sudo curl -fsSL -o /etc/apt/keyrings/tlp-panel.asc \
+  https://timemrah.github.io/tlp-panel/apt/tlp-panel.asc
+
+echo "deb [signed-by=/etc/apt/keyrings/tlp-panel.asc] \
+https://timemrah.github.io/tlp-panel/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/tlp-panel.list
+
+sudo apt update
+sudo apt install tlp-panel</code></pre>
+
+<p>TLP itself comes with it if it is not installed yet.</p>
+
+<h3>Arch Linux</h3>
+<pre><code>yay -S tlp-panel</code></pre>
+
+<h3>A single package, no repository</h3>
+<p>
+  Grab the <code>.deb</code> from
+  <a href="https://github.com/timemrah/tlp-panel/releases/latest">the latest release</a>
+  and install it with <code>sudo apt install ./tlp-panel_*_all.deb</code>.
+  You will have to repeat that for each update.
+</p>
+
+<h2>What it does</h2>
+<p>
+  TLP has no interface. It is a set of rules applied at boot and whenever the power
+  cable moves, and reading what it did means running <code>tlp-stat</code> as root.
+  TLP Panel answers the questions people actually ask — how many watts am I burning,
+  will this last the flight, why is the fan on — and puts the handful of settings
+  worth changing next to the answers.
+</p>
+<p>
+  Controls the hardware cannot honour are detected and marked unsupported rather
+  than silently doing nothing. The window never runs as root.
+</p>
+
+<hr>
+
+<footer>
+  <a href="https://github.com/timemrah/tlp-panel">Source on GitHub</a> ·
+  GPL-3.0-or-later ·
+  Mehmet Emrah Tunçel
+</footer>
+
+</main>
+</body>
+</html>

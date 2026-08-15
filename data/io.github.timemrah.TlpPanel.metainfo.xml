@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 Mehmet Emrah Tunçel -->
+<component type="desktop-application">
+  <id>io.github.timemrah.TlpPanel</id>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>TLP Panel</name>
+  <name xml:lang="tr">TLP Paneli</name>
+  <summary>Live power status and quick actions for TLP</summary>
+  <summary xml:lang="tr">TLP için canlı güç durumu ve hızlı eylemler</summary>
+
+  <description>
+    <p>
+      TLP Panel shows what a laptop is doing with power right now: draw in
+      watts, battery charge and health, cycle count, and how long the battery
+      will last at the current rate. Plugged in, it counts up to the charge
+      limit and to a full pack instead.
+    </p>
+    <p xml:lang="tr">
+      TLP Paneli, dizüstü bilgisayarın güçle şu anda ne yaptığını gösterir:
+      watt cinsinden çekiş, pil doluluğu ve sağlığı, çevrim sayısı ve mevcut
+      hızda pilin ne kadar dayanacağı. Fişe takılıyken bunun yerine şarj
+      sınırına ve tam doluluğa kalan süreyi sayar.
+    </p>
+    <p>
+      It also drives the TLP settings people change most often, next to the
+      readings that explain them:
+    </p>
+    <p xml:lang="tr">
+      Ayrıca en sık değiştirilen TLP ayarlarını, onları açıklayan ölçümlerin
+      yanında sunar:
+    </p>
+    <ul>
+      <li>System mode — follow the cable, or pin battery saving or full performance</li>
+      <li xml:lang="tr">Sistem kipi — kabloyu izle ya da pil tasarrufu veya tam başarımı sabitle</li>
+      <li>Charge limit, written to the battery firmware, plus a one-off charge to 100%</li>
+      <li xml:lang="tr">Pil bellenimine yazılan şarj sınırı ve tek seferlik %100 şarj</li>
+      <li>Wi-Fi power saving: on battery only, always, or never</li>
+      <li xml:lang="tr">Wi-Fi güç tasarrufu: yalnızca pilde, her zaman ya da hiçbir zaman</li>
+      <li>Runtime power management for idle PCI devices</li>
+      <li xml:lang="tr">Boştaki PCI aygıtları için çalışma zamanı güç yönetimi</li>
+      <li>AMD adaptive backlight, separately for mains and battery</li>
+      <li xml:lang="tr">AMD uyarlamalı arka ışık, priz ve pil için ayrı ayrı</li>
+    </ul>
+    <p>
+      Controls that the hardware cannot honour are detected and marked
+      unsupported rather than silently doing nothing. Some power settings exist
+      in sysfs, accept a value, store it, and change nothing — this app checks,
+      and says so.
+    </p>
+    <p xml:lang="tr">
+      Donanımın yerine getiremeyeceği denetimler sessizce hiçbir şey yapmak
+      yerine desteklenmiyor olarak işaretlenir. Bazı güç ayarları sysfs'te
+      vardır, değeri kabul eder, saklar ve hiçbir şeyi değiştirmez; bu uygulama
+      denetler ve durumu söyler.
+    </p>
+    <p>
+      The window never runs as root. Everything on screen comes from files any
+      user can read, and every change goes through polkit to a helper that
+      accepts a fixed set of verbs and writes only allowlisted keys.
+    </p>
+    <p xml:lang="tr">
+      Pencere hiçbir zaman root olarak çalışmaz. Ekrandaki her şey herhangi bir
+      kullanıcının okuyabileceği dosyalardan gelir; her değişiklik polkit
+      üzerinden, sabit bir eylem kümesi alan ve yalnızca izin listesindeki
+      anahtarları yazan bir yardımcıya gider.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.timemrah.TlpPanel.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Power draw, battery, system mode and estimated runtime</caption>
+      <caption xml:lang="tr">Güç çekişi, pil, sistem kipi ve tahmini süre</caption>
+      <image type="source" width="1616" height="1758">https://raw.githubusercontent.com/timemrah/tlp-panel/master/docs/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://github.com/timemrah/tlp-panel</url>
+  <url type="bugtracker">https://github.com/timemrah/tlp-panel/issues</url>
+  <url type="vcs-browser">https://github.com/timemrah/tlp-panel</url>
+
+  <developer id="io.github.timemrah">
+    <name>Mehmet Emrah Tunçel</name>
+  </developer>
+  <update_contact>timemrah_AT_gmail.com</update_contact>
+
+  <categories>
+    <category>System</category>
+    <category>Monitor</category>
+  </categories>
+
+  <keywords>
+    <keyword>power</keyword>
+    <keyword>battery</keyword>
+    <keyword>tlp</keyword>
+    <keyword>laptop</keyword>
+    <keyword>energy</keyword>
+    <keyword translate="no">watt</keyword>
+    <keyword xml:lang="tr">güç</keyword>
+    <keyword xml:lang="tr">pil</keyword>
+    <keyword xml:lang="tr">dizüstü</keyword>
+    <keyword xml:lang="tr">enerji</keyword>
+  </keywords>
+
+  <content_rating type="oars-1.1" />
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+
+  <releases>
+    <release version="0.2.3" date="2026-08-15">
+      <description>
+        <p>
+          TLP Panel now lists itself in software centres, and installs from an
+          apt repository on Debian and Ubuntu or from the AUR on Arch, so
+          updates arrive with the rest of the system instead of by hand.
+        </p>
+      </description>
+    </release>
+    <release version="0.2.2" date="2026-08-15">
+      <description>
+        <p>
+          A hand-built About dialog, so the maintainer's address sits beside the
+          name instead of behind a Details page. Battery cycle count row
+          capitalised to match its neighbours.
+        </p>
+      </description>
+    </release>
+    <release version="0.2.1" date="2026-08-15">
+      <description>
+        <p>The maintainer's address moved directly under the name in the About dialog.</p>
+      </description>
+    </release>
+    <release version="0.2.0" date="2026-08-15">
+      <description>
+        <p>
+          The estimated runtime card answers the charging question too: it
+          retitles itself by whether the cable is in, and counts up to the
+          charge limit and to a full pack while charging. Runtime projections
+          are now made only while discharging. The headline watt reading holds
+          its last value through the second or two after the cable moves.
+        </p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-08-14">
+      <description>
+        <p>Initial release.</p>
+      </description>
+    </release>
+  </releases>
+</component>
