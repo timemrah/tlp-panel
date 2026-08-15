@@ -9,6 +9,7 @@ pkgbase = tlp-panel
 	makedepends = appstream
 	depends = python
 	depends = python-gobject
+	depends = python-cairo
 	depends = gtk4
 	depends = libadwaita
 	depends = tlp
