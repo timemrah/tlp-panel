@@ -198,6 +198,7 @@ class TlpPanelWindow(Adw.ApplicationWindow):
 
         self._battery_percent = 0.0
         self._battery_charging = False
+        self._last_watts: float | None = None
         self._battery_area = Gtk.DrawingArea()
         self._battery_area.set_content_width(240)
         self._battery_area.set_content_height(58)
@@ -632,7 +633,16 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         watts = state.total_power_w
         battery = state.battery
 
-        self._watt_label.set_label(f"{watts:.2f} W" if watts else "—")
+        # Right after the cable moves, the controller reports 0 W for a
+        # second or two. Hold the previous figure while current should be
+        # flowing, rather than blanking the headline number.
+        if watts:
+            self._last_watts = watts
+        elif battery is None or not (battery.charging or battery.discharging):
+            self._last_watts = None
+
+        shown = watts or self._last_watts
+        self._watt_label.set_label(f"{shown:.2f} W" if shown else "—")
 
         # While charging the battery reports charge power, not what the system
         # is consuming — labelling both the same way would be misleading.
