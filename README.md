@@ -9,6 +9,8 @@ tell you your current draw, which profile is active, or how long the battery
 will last. TLP Panel fills that gap — live readings on the left, the handful of
 controls most people actually change on the right.
 
+![TLP Panel](docs/screenshot.png)
+
 ## What it shows
 
 - **Live power draw in watts**, straight from the battery, refreshed every two

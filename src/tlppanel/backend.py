@@ -92,8 +92,13 @@ class Battery:
         return self.energy_wh / self.power_w
 
     def projected_hours(self, energy_wh: float) -> float | None:
-        """Hours a given amount of energy would last at the current draw."""
-        if not self.power_w or self.power_w <= 0:
+        """Hours a given amount of energy would last at the current draw.
+
+        Only while discharging: when the battery is charging, power_now is
+        the charge power, and dividing by it would answer a question nobody
+        asked.
+        """
+        if not self.discharging or not self.power_w or self.power_w <= 0:
             return None
         return energy_wh / self.power_w
 
