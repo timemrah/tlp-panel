@@ -156,6 +156,14 @@ def apply_mode_preset(preset: str, callback: Callable[[bool, str], None]) -> Non
     run_tlp({"auto": "start", "bat": "bat", "ac": "ac"}[preset], callback)
 
 
+def set_cpu_freq_limits(ac: int, bat: int, callback: Callable[[bool, str], None]) -> None:
+    """Cap the processor's top frequency, in kHz, for both power sources."""
+    if not helper_available():
+        callback(False, "helper not installed")
+        return
+    _run_privileged([HELPER, "set-cpu-freq", str(ac), str(bat)], callback)
+
+
 def set_runtime_pm(ac: str, bat: str, callback: Callable[[bool, str], None]) -> None:
     """Set device runtime power management for both power sources.
 

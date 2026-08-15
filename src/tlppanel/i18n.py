@@ -48,7 +48,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "Charge to 100% once": "Bir kereliğine %100 şarj et",
         "Wi-Fi power saving": "Wi-Fi Güç Tasarrufu",
         "Adaptive backlight": "Adaptif Arka Işık",
-        "Not supported by this display": "Bu ekranda desteklenmiyor — sürücü ayarı kabul ediyor ama uygulamıyor",
         "Sleep idle devices": "Boştaki Donanımı Uyut",
         "Idle device sleep updated": "Donanım uyku ayarı güncellendi",
         "Lets idle PCI devices — the card reader, the sound chip, "
@@ -63,6 +62,22 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "tutulabilir; panel bu muafiyetlere dokunmaz.",
         "Off": "Kapalı",
         "On": "Açık",
+        "CPU speed limit": "İşlemci Hız Sınırı",
+        "CPU speed limit updated": "İşlemci hız sınırı güncellendi",
+        "Caps how fast the processor may run. The system mode sets it: "
+        "battery saving picks the lowest step, full performance the "
+        "highest, and automatic uses the lowest on battery and the "
+        "highest on AC. Move the slider to override the limit for the "
+        "power source in use; the next mode change resets it. A lower "
+        "cap means less heat and a quieter fan, but work that takes "
+        "twice as long can end up costing more energy, not less.":
+            "İşlemcinin çıkabileceği en yüksek hızı sınırlar. Sistem modu bunu "
+            "belirler: Tasarruf en düşük kademeyi, Performans en yükseğini "
+            "seçer; Otomatik pilde en düşüğü, fişte en yükseğini kullanır. "
+            "Kaydırıcıyı oynatırsan o anki güç kaynağı için sınırı elle "
+            "geçersiz kılarsın; bir sonraki mod değişikliği bunu sıfırlar. "
+            "Düşük sınır daha az ısı ve daha sessiz fan demek, ama iki katı "
+            "süren bir iş toplamda daha az değil daha çok enerji harcayabilir.",
         "Adaptive backlight updated": "Adaptif arka ışık güncellendi",
         "Wi-Fi power saving updated": "Wi-Fi güç tasarrufu güncellendi",
         "The panel dims and shifts contrast to save power. Higher "

@@ -41,6 +41,13 @@ STATUS_LABELS = {
 # TLP reports these verbatim; mark them so the wording stays translatable.
 WIFI_STATES = (N_("on"), N_("off"))
 
+# Above this many frequency steps, labelling every mark crowds the scale.
+CPU_LABEL_ALL_UP_TO = 6
+
+
+def _format_ghz(khz: int) -> str:
+    return f"{khz / 1_000_000:.1f}"
+
 
 class TlpPanelWindow(Adw.ApplicationWindow):
     def __init__(self, **kwargs):
@@ -66,6 +73,13 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         self._suppress_runtime_pm = False
         self._current_start: int | None = None
         self._current_stop: int | None = None
+        # The frequency steps never change while the app runs, so read them once.
+        self._cpu_limits = backend.read_cpu_freq_limits()
+        self._cpu_conf: dict[str, int | None] = {"ac": None, "bat": None}
+        self._suppress_cpu = False
+        self._cpu_user_touched = False
+        self._cpu_timeout = 0
+        self._on_ac = True
 
         self._toasts = Adw.ToastOverlay()
         self.set_content(self._toasts)
@@ -286,6 +300,45 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         block.set_vexpand(True)
         return block
 
+    def _build_cpu_limit_block(self) -> Gtk.Widget:
+        """Slider over the frequency ceilings this processor actually offers.
+
+        Positions are step indexes, not kilohertz: the steps are rarely evenly
+        spaced, and an index scale gives each one the same width.
+        """
+        steps = self._cpu_limits.steps
+        self._cpu_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 0, max(1, len(steps) - 1), 1
+        )
+        self._cpu_scale.set_draw_value(False)
+        self._cpu_scale.set_hexpand(True)
+        for index, khz in enumerate(steps):
+            label = _format_ghz(khz) if self._label_cpu_step(index, len(steps)) else None
+            self._cpu_scale.add_mark(index, Gtk.PositionType.BOTTOM, label)
+        self._cpu_scale.connect("value-changed", self._on_cpu_scale_changed)
+
+        self._cpu_block = self._control_block(
+            _("CPU speed limit"),
+            self._cpu_scale,
+            _(
+                "Caps how fast the processor may run. The system mode sets it: "
+                "battery saving picks the lowest step, full performance the "
+                "highest, and automatic uses the lowest on battery and the "
+                "highest on AC. Move the slider to override the limit for the "
+                "power source in use; the next mode change resets it. A lower "
+                "cap means less heat and a quieter fan, but work that takes "
+                "twice as long can end up costing more energy, not less."
+            ),
+        )
+        return self._cpu_block
+
+    @staticmethod
+    def _label_cpu_step(index: int, count: int) -> bool:
+        """Label every mark when there are few, else thin them out."""
+        if count <= CPU_LABEL_ALL_UP_TO:
+            return True
+        return index in (0, count - 1) or index % 2 == 0
+
     def _build_controls_card(self) -> Gtk.Widget:
         """Mode, Wi-Fi and device sleep share one card: all three pick how
         aggressively the machine saves power."""
@@ -381,8 +434,15 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         return self._charge_card
 
     def _build_abm_group(self) -> Gtk.Widget:
-        """Two sliders: adaptive backlight level on AC and on battery."""
+        """The two display-and-processor ceilings: CPU speed, then adaptive
+        backlight on AC and on battery.
+
+        Either block can be unsupported on a given machine, so the card
+        follows whichever ones remain visible.
+        """
         self._abm_card, inner = self._make_card()
+
+        inner.append(self._build_cpu_limit_block())
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self._abm_scales: dict[str, Gtk.Scale] = {}
@@ -403,25 +463,16 @@ class TlpPanelWindow(Adw.ApplicationWindow):
             self._abm_scales[key] = scale
             content.append(scale)
 
-        self._abm_note = Gtk.Label(label=_("Not supported by this display"))
-        self._abm_note.add_css_class("dim-label")
-        self._abm_note.add_css_class("caption")
-        self._abm_note.set_wrap(True)
-        self._abm_note.set_xalign(0)
-        self._abm_note.set_visible(False)
-        content.append(self._abm_note)
-
-        inner.append(
-            self._control_block(
-                _("Adaptive backlight"),
-                content,
-                _(
-                    "The panel dims and shifts contrast to save power. Higher "
-                    "levels save more but wash out colours. 0 turns it off. "
-                    "Most people leave it off on AC and low on battery."
-                ),
-            )
+        self._abm_block = self._control_block(
+            _("Adaptive backlight"),
+            content,
+            _(
+                "The panel dims and shifts contrast to save power. Higher "
+                "levels save more but wash out colours. 0 turns it off. "
+                "Most people leave it off on AC and low on battery."
+            ),
         )
+        inner.append(self._abm_block)
         return self._abm_card
 
     @staticmethod
@@ -606,6 +657,7 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         self._update_charge_limit(state)
         self._update_runtime(state)
         self._update_mode(state)
+        self._update_cpu_limit(state)
         self._update_wifi(state)
         self._update_abm(state)
         self._update_runtime_pm(state)
@@ -846,14 +898,98 @@ class TlpPanelWindow(Adw.ApplicationWindow):
             button.set_active(True)
         self._suppress_toggle = False
 
+    def _sync_settings_card(self) -> None:
+        """Hide the shared card only when both of its blocks are gone."""
+        self._abm_card.set_visible(
+            self._cpu_block.get_visible() or self._abm_block.get_visible()
+        )
+
+    def _update_cpu_limit(self, state: backend.PowerState) -> None:
+        self._cpu_block.set_visible(
+            self._cpu_limits.supported and actions.helper_available()
+        )
+        self._sync_settings_card()
+        if not self._cpu_limits.supported:
+            return
+
+        self._on_ac = bool(state.on_ac)
+        conf = state.tlp.config
+        hardware_max = self._cpu_limits.hardware_max
+
+        for key, name in (
+            ("ac", "CPU_SCALING_MAX_FREQ_ON_AC"),
+            ("bat", "CPU_SCALING_MAX_FREQ_ON_BAT"),
+        ):
+            raw = conf.get(name)
+            try:
+                value = int(raw) if raw else None
+            except ValueError:
+                value = None
+            # Unset or zero means TLP leaves the ceiling alone, which is the
+            # hardware maximum.
+            self._cpu_conf[key] = value or hardware_max
+
+        if self._cpu_user_touched:
+            return
+
+        current = self._cpu_conf["ac" if self._on_ac else "bat"]
+        index = self._cpu_limits.steps.index(self._cpu_limits.nearest(current))
+        self._suppress_cpu = True
+        self._cpu_scale.set_value(index)
+        self._suppress_cpu = False
+
+    def _on_cpu_scale_changed(self, *_args) -> None:
+        """Snap to a whole step, then apply once the user stops dragging."""
+        if self._suppress_cpu:
+            return
+
+        raw = self._cpu_scale.get_value()
+        snapped = round(raw)
+        if snapped != raw:
+            self._suppress_cpu = True
+            self._cpu_scale.set_value(snapped)
+            self._suppress_cpu = False
+
+        self._cpu_user_touched = True
+        if self._cpu_timeout:
+            GLib.source_remove(self._cpu_timeout)
+        self._cpu_timeout = GLib.timeout_add(SETTING_APPLY_DELAY_MS, self._apply_cpu_limit)
+
+    def _apply_cpu_limit(self) -> bool:
+        self._cpu_timeout = 0
+        if self._busy:
+            self._cpu_timeout = GLib.timeout_add(
+                SETTING_APPLY_DELAY_MS, self._apply_cpu_limit
+            )
+            return GLib.SOURCE_REMOVE
+
+        steps = self._cpu_limits.steps
+        index = max(0, min(len(steps) - 1, int(round(self._cpu_scale.get_value()))))
+        chosen = steps[index]
+
+        # The slider edits the source in use; the other one keeps its ceiling.
+        fallback = self._cpu_limits.hardware_max
+        ac = chosen if self._on_ac else (self._cpu_conf["ac"] or fallback)
+        bat = (self._cpu_conf["bat"] or fallback) if self._on_ac else chosen
+
+        def done(ok: bool, message: str) -> None:
+            self._set_busy(False)
+            self._cpu_user_touched = False
+            self._toast_result(ok, message, N_("CPU speed limit updated"))
+
+        self._set_busy(True)
+        actions.set_cpu_freq_limits(int(ac), int(bat), done)
+        return GLib.SOURCE_REMOVE
+
     def _update_abm(self, state: backend.PowerState) -> None:
         conf = state.tlp.config
         supported = backend.read_abm_level() is not None
-        self._abm_card.set_visible(supported and actions.helper_available())
+        self._abm_block.set_visible(supported and actions.helper_available())
+        self._sync_settings_card()
 
-        # The knob may exist while the hardware ignores it entirely.
+        # The knob may exist while the hardware ignores it entirely; the
+        # sliders then stay greyed out rather than pretending to work.
         effective = backend.abm_supported()
-        self._abm_note.set_visible(effective is False)
         for scale in self._abm_scales.values():
             scale.set_sensitive(effective is not False)
 
@@ -994,6 +1130,7 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         for button in list(self._mode_buttons.values()) + [self._btn_fullcharge]:
             button.set_sensitive(not busy)
         self._charge_scale.set_sensitive(not busy)
+        self._cpu_scale.set_sensitive(not busy)
 
     def _run(self, func, success_message: str) -> None:
         if self._busy:
@@ -1015,6 +1152,12 @@ class TlpPanelWindow(Adw.ApplicationWindow):
     def _on_mode_toggled(self, button: Gtk.ToggleButton, key: str) -> None:
         if self._suppress_toggle or not button.get_active():
             return
+        # The preset rewrites the frequency ceilings, so let the slider follow
+        # it again even if the user had moved it by hand.
+        self._cpu_user_touched = False
+        if self._cpu_timeout:
+            GLib.source_remove(self._cpu_timeout)
+            self._cpu_timeout = 0
         messages = {
             "auto": N_("Mode switched to automatic"),
             "bat": N_("Battery saving applied"),

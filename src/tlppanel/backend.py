@@ -299,6 +299,84 @@ def abm_supported() -> bool | None:
     return value.strip() == "1"
 
 
+CPUFREQ_DIR = Path("/sys/devices/system/cpu/cpu0/cpufreq")
+# How many ceilings to offer when the driver takes any value in a range.
+CPU_FALLBACK_STEPS = 8
+CPU_STEP_ROUNDING = 100_000  # kHz, i.e. 100 MHz
+
+
+@dataclass
+class CpuFreqLimits:
+    """The frequency ceiling the scaling driver accepts, in kHz.
+
+    `steps` is what the slider offers: either the driver's own list of
+    P-states, or an evenly spaced range for drivers that take any value.
+    """
+
+    steps: list[int] = field(default_factory=list)
+    active_max: int | None = None
+    driver: str | None = None
+
+    @property
+    def supported(self) -> bool:
+        # A single step is not a choice, so there is nothing to offer.
+        return len(self.steps) > 1
+
+    @property
+    def hardware_max(self) -> int | None:
+        return self.steps[-1] if self.steps else None
+
+    @property
+    def hardware_min(self) -> int | None:
+        return self.steps[0] if self.steps else None
+
+    def nearest(self, khz: int) -> int:
+        """The offered step closest to a value, for reading a config back."""
+        return min(self.steps, key=lambda step: abs(step - khz))
+
+
+def _synthesised_steps(low: int, high: int) -> list[int]:
+    """Evenly spaced ceilings, for drivers with no list of their own."""
+    if high <= low:
+        return [low]
+    span = high - low
+    steps = [
+        int(round((low + span * i / (CPU_FALLBACK_STEPS - 1)) / CPU_STEP_ROUNDING))
+        * CPU_STEP_ROUNDING
+        for i in range(CPU_FALLBACK_STEPS)
+    ]
+    # Rounding may have moved the ends off the real limits.
+    steps[0] = low
+    steps[-1] = high
+    return sorted(set(steps))
+
+
+def read_cpu_freq_limits() -> CpuFreqLimits:
+    """Frequency ceilings this processor can be held to."""
+    limits = CpuFreqLimits()
+    limits.driver = _read(CPUFREQ_DIR / "scaling_driver")
+    limits.active_max = _read_int(CPUFREQ_DIR / "scaling_max_freq")
+
+    raw = _read(CPUFREQ_DIR / "scaling_available_frequencies")
+    if raw:
+        found = []
+        for token in raw.split():
+            try:
+                found.append(int(token))
+            except ValueError:
+                continue
+        limits.steps = sorted(set(found))
+        return limits
+
+    # intel_pstate and friends publish no list: they accept any value
+    # between the two hardware limits.
+    low = _read_int(CPUFREQ_DIR / "cpuinfo_min_freq")
+    high = _read_int(CPUFREQ_DIR / "cpuinfo_max_freq")
+    if low is not None and high is not None:
+        limits.steps = _synthesised_steps(low, high)
+    return limits
+
+
 def read_wifi_powersave() -> dict[str, str]:
     """Power-save state per wireless interface, read from sysfs only."""
     result: dict[str, str] = {}

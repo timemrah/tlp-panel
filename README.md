@@ -121,8 +121,9 @@ settings survive a reboot.
 
 | | |
 |---|---|
-| **System mode** | Automatic follows the cable. Battery saving and Full performance pin one profile — and apply the two settings below as a preset. |
+| **System mode** | Automatic follows the cable. Battery saving and Full performance pin one profile — and apply the three settings below as a preset. |
 | **Charge limit** | Stop charging at a chosen percentage, written to the battery firmware. Plus a one-off *charge to 100%* for the day before a trip. |
+| **CPU speed limit** | How fast the processor may run, in the steps it actually offers. Automatic caps it on battery and lifts the cap on AC; the slider overrides the source in use. |
 | **Wi-Fi power saving** | Let the radio sleep on battery only, always, or never. |
 | **Sleep idle devices** | Whether idle PCI devices may power down. Your per-device exemptions are left alone. |
 | **Adaptive backlight** | AMD panel power saving, separately for AC and battery. |
@@ -135,9 +136,13 @@ Controls appear only when they can do something:
 
 - **Adaptive backlight** runs on the display microcontroller. On several AMD
   APUs that firmware is never loaded, so the kernel accepts a level, stores it,
-  and nothing happens. TLP Panel detects this and marks the section
-  unsupported.
+  and nothing happens. TLP Panel detects this and leaves the sliders greyed
+  out.
 - **Charge limits** appear only when the battery exposes thresholds.
+- **The CPU speed limit** offers the frequencies the scaling driver reports.
+  Drivers that publish a list of P-states give exactly those; drivers that take
+  any value in a range get an evenly spaced set. A processor with a single
+  frequency has nothing to choose, so the slider stays away.
 - **Wi-Fi and device sleep** appear only when there is something to control.
 
 <br>

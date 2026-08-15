@@ -11,6 +11,7 @@ CONF_FILE=/etc/tlp.d/90-tlp-panel.conf
 STATE_DIR=/var/lib/tlp-panel
 ABM_STATE=$STATE_DIR/abm-supported
 TLP_BIN=/usr/sbin/tlp
+CPUFREQ_DIR=/sys/devices/system/cpu/cpu0/cpufreq
 
 die() {
     echo "$1" >&2
@@ -71,6 +72,33 @@ is_on_auto() {
         on|auto) return 0 ;;
         *) return 1 ;;
     esac
+}
+
+# Frequency ceilings this processor accepts, in kHz, one per line, ascending.
+# Drivers that publish no list (intel_pstate) take any value in the hardware
+# range, so the two ends are enough to bound it.
+cpu_freq_steps() {
+    if [ -r "$CPUFREQ_DIR/scaling_available_frequencies" ]; then
+        tr ' ' '\n' < "$CPUFREQ_DIR/scaling_available_frequencies" |
+            grep -E '^[0-9]+$' | sort -n | uniq
+    else
+        [ -r "$CPUFREQ_DIR/cpuinfo_min_freq" ] && cat "$CPUFREQ_DIR/cpuinfo_min_freq"
+        [ -r "$CPUFREQ_DIR/cpuinfo_max_freq" ] && cat "$CPUFREQ_DIR/cpuinfo_max_freq"
+    fi
+    return 0
+}
+
+cpu_freq_min() { cpu_freq_steps | head -n 1; }
+cpu_freq_max() { cpu_freq_steps | tail -n 1; }
+
+is_cpu_freq() {
+    case "${1:-}" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    lo=$(cpu_freq_min)
+    hi=$(cpu_freq_max)
+    [ -n "$lo" ] && [ -n "$hi" ] || return 1
+    [ "$1" -ge "$lo" ] && [ "$1" -le "$hi" ]
 }
 
 # Re-apply TLP settings without changing whether the profile is manual.
@@ -182,10 +210,30 @@ cmd_set_runtime_pm() {
     echo "runtime power management set to ac=${ac} bat=${bat}"
 }
 
-# Applying a system mode also sets the two sub-settings it implies, so the
-# panel needs one authorisation instead of three.
+cmd_set_cpu_freq() {
+    ac="${1:-}"
+    bat="${2:-}"
+
+    is_cpu_freq "$ac" || die "invalid AC frequency limit"
+    is_cpu_freq "$bat" || die "invalid battery frequency limit"
+
+    put_key CPU_SCALING_MAX_FREQ_ON_AC "$ac"
+    put_key CPU_SCALING_MAX_FREQ_ON_BAT "$bat"
+
+    reapply_tlp
+
+    echo "cpu frequency limit set to ac=${ac} bat=${bat}"
+}
+
+# Applying a system mode also sets the sub-settings it implies, so the panel
+# needs one authorisation instead of four.
 cmd_apply_preset() {
     preset="${1:-}"
+
+    # Empty when the processor has no usable scaling limits; the frequency
+    # keys are then skipped rather than written with a bogus value.
+    cpu_lo=$(cpu_freq_min)
+    cpu_hi=$(cpu_freq_max)
 
     case "$preset" in
         auto)
@@ -193,6 +241,8 @@ cmd_apply_preset() {
             put_key WIFI_PWR_ON_BAT on
             put_key RUNTIME_PM_ON_AC on
             put_key RUNTIME_PM_ON_BAT auto
+            cpu_ac="$cpu_hi"
+            cpu_bat="$cpu_lo"
             tlp_verb=start
             ;;
         bat)
@@ -200,6 +250,8 @@ cmd_apply_preset() {
             put_key WIFI_PWR_ON_BAT on
             put_key RUNTIME_PM_ON_AC auto
             put_key RUNTIME_PM_ON_BAT auto
+            cpu_ac="$cpu_lo"
+            cpu_bat="$cpu_lo"
             tlp_verb=bat
             ;;
         ac)
@@ -207,12 +259,19 @@ cmd_apply_preset() {
             put_key WIFI_PWR_ON_BAT off
             put_key RUNTIME_PM_ON_AC on
             put_key RUNTIME_PM_ON_BAT on
+            cpu_ac="$cpu_hi"
+            cpu_bat="$cpu_hi"
             tlp_verb=ac
             ;;
         *)
             die "unknown preset"
             ;;
     esac
+
+    if [ -n "$cpu_lo" ] && [ -n "$cpu_hi" ] && [ "$cpu_lo" != "$cpu_hi" ]; then
+        put_key CPU_SCALING_MAX_FREQ_ON_AC "$cpu_ac"
+        put_key CPU_SCALING_MAX_FREQ_ON_BAT "$cpu_bat"
+    fi
 
     [ -x "$TLP_BIN" ] && "$TLP_BIN" "$tlp_verb" >/dev/null 2>&1 || true
     echo "system mode ${preset} applied"
@@ -232,6 +291,7 @@ case "$verb" in
     set-abm) cmd_set_abm "$@" ;;
     set-wifi) cmd_set_wifi "$@" ;;
     set-runtime-pm) cmd_set_runtime_pm "$@" ;;
+    set-cpu-freq) cmd_set_cpu_freq "$@" ;;
     apply-preset) cmd_apply_preset "$@" ;;
     probe) cmd_probe ;;
     clear) cmd_clear ;;
