@@ -5,6 +5,10 @@ Layout is two columns side by side, collapsing to one on narrow windows.
 
 from __future__ import annotations
 
+import math
+import random
+
+import cairo
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -27,7 +31,63 @@ ABM_MAX = 4
 SETTING_APPLY_DELAY_MS = 900
 # Charge levels where the indicator changes colour.
 LEVEL_GOOD = 50.0
-LEVEL_LOW = 20.0
+# Where the ramp bottoms out. Below this the fill is red and stays red.
+LEVEL_CRITICAL = 10.0
+# Where the fill starts pulsing.
+LEVEL_BLINK = 5.0
+# Half a pulse: the animation alternates, so a full breath is twice this.
+BLINK_MS = 900
+# How far the fill dims at the bottom of a pulse.
+BLINK_DIM = 0.35
+
+# A highlight sweeps the fill every so often: rightwards while charging,
+# leftwards while draining, so the direction says which way the energy moves.
+WAVE_PERIOD_SECONDS = 5
+WAVE_MS = 1200
+# Half the band's width, as a fraction of the fill.
+WAVE_BAND = 0.22
+WAVE_ALPHA = 0.22
+
+# While charging, motes drift in from the left of the fill and fade out.
+PARTICLE_COUNT = 14
+PARTICLE_CYCLE_MS = 4000
+PARTICLE_ALPHA = 0.85
+# How sharply a mote fades as it crosses. Below 1 it lingers, above it drops
+# away early.
+PARTICLE_FADE = 1.1
+
+
+def _make_particles(count: int):
+    """Fixed motes, built once at import.
+
+    Heights and start times come off an even ladder that is then shuffled,
+    rather than straight out of the generator: a handful of independent draws
+    leaves gaps and clumps often enough that trusting one to look spread out
+    is a coin toss. Everything that only adds texture — size, sway, speed — is
+    random, from a fixed seed, so the drift is stable between frames and
+    reproducible in screenshots and tests.
+    """
+    rng = random.Random(20260816)
+    spread = max(1, count - 1)
+    heights = [0.26 + 0.48 * index / spread for index in range(count)]
+    rng.shuffle(heights)
+
+    return tuple(
+        (
+            # Evenly spaced arrivals, nudged so they do not march in lockstep.
+            (index / count + rng.uniform(-0.03, 0.03)) % 1.0,
+            heights[index],  # resting height inside the fill
+            # Whole numbers of passes per cycle, or the loop would jump.
+            rng.choice((1, 1, 1, 2)),
+            rng.uniform(1.6, 3.2),  # radius, px
+            rng.uniform(0.04, 0.11),  # sway, as a fraction of the height
+            rng.uniform(0.8, 1.8),  # sway cycles over one pass
+        )
+        for index in range(count)
+    )
+
+
+PARTICLES = _make_particles(PARTICLE_COUNT)
 
 # Values are translated when displayed, so they are marked, not translated here.
 STATUS_LABELS = {
@@ -137,11 +197,15 @@ class TlpPanelWindow(Adw.ApplicationWindow):
             "_charge_timeout",
             "_abm_timeout",
             "_cpu_timeout",
+            "_wave_timeout",
         ):
             source = getattr(self, attr, 0)
             if source:
                 GLib.source_remove(source)
                 setattr(self, attr, 0)
+        self._blink_animation.reset()
+        self._wave_animation.reset()
+        self._particle_animation.reset()
         return False
 
     def _attach_cards(self, two_columns: bool) -> None:
@@ -228,6 +292,11 @@ class TlpPanelWindow(Adw.ApplicationWindow):
 
         self._battery_percent = 0.0
         self._battery_charging = False
+        self._battery_discharging = False
+        self._blink_level = 1.0
+        self._wave_pos: float | None = None
+        self._wave_timeout = 0
+        self._particle_phase: float | None = None
         self._last_watts: float | None = None
         self._battery_area = Gtk.DrawingArea()
         self._battery_area.set_content_width(240)
@@ -236,6 +305,43 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         self._battery_area.set_margin_top(20)
         self._battery_area.set_draw_func(self._draw_battery)
         inner.append(self._battery_area)
+
+        # Driven by the frame clock rather than a timeout, so the fill breathes
+        # instead of flicking between two states.
+        self._blink_animation = Adw.TimedAnimation.new(
+            self._battery_area,
+            1.0,
+            BLINK_DIM,
+            BLINK_MS,
+            Adw.CallbackAnimationTarget.new(self._on_blink_frame),
+        )
+        self._blink_animation.set_easing(Adw.Easing.EASE_IN_OUT_SINE)
+        self._blink_animation.set_alternate(True)
+        self._blink_animation.set_repeat_count(0)  # 0 means forever
+
+        # One sweep per period rather than a permanently running animation:
+        # between sweeps there is nothing to redraw, so the frame clock rests.
+        self._wave_animation = Adw.TimedAnimation.new(
+            self._battery_area,
+            0.0,
+            1.0,
+            WAVE_MS,
+            Adw.CallbackAnimationTarget.new(self._on_wave_frame),
+        )
+        self._wave_animation.set_easing(Adw.Easing.EASE_IN_OUT_SINE)
+        self._wave_animation.connect("done", self._on_wave_done)
+
+        # A steady drift, so linear easing and no alternation: the motes should
+        # cross at one speed, not slow down at the edges.
+        self._particle_animation = Adw.TimedAnimation.new(
+            self._battery_area,
+            0.0,
+            1.0,
+            PARTICLE_CYCLE_MS,
+            Adw.CallbackAnimationTarget.new(self._on_particle_frame),
+        )
+        self._particle_animation.set_easing(Adw.Easing.LINEAR)
+        self._particle_animation.set_repeat_count(0)
 
         self._percent_label = Gtk.Label(label="")
         self._percent_label.add_css_class("heading")
@@ -549,22 +655,35 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         return card
 
     @staticmethod
-    def _level_colour(percent: float) -> tuple[float, float, float]:
-        """Blue while healthy, sliding to amber then red as the charge drops."""
+    def _level_colour(percent: float, charging: bool = False) -> tuple[float, float, float]:
+        """Green while charging; otherwise blue, sliding to amber then red.
+
+        Red arrives at LEVEL_CRITICAL rather than at empty, and stays. Running
+        the ramp all the way down would have spent its loudest colour on a
+        battery that is already flat, and made the difference between 8% and 2%
+        look like a shade rather than an emergency.
+        """
 
         def mix(a, b, t):
             return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
 
+        green = (0.149, 0.635, 0.412)
         blue = (0.21, 0.52, 0.89)
         amber = (0.96, 0.83, 0.18)
         red = (0.88, 0.11, 0.14)
+
+        # A pack that is filling is good news at any level. The percentage
+        # already says how empty it is, and a red bar on a battery that is
+        # actively recovering is an alarm nobody can act on.
+        if charging:
+            return green
 
         # Blue steps straight to amber at the threshold: interpolating between
         # them in RGB would pass through a muddy green.
         if percent >= LEVEL_GOOD:
             return blue
-        span = max(0.0, percent) / LEVEL_GOOD
-        return mix(red, amber, span)
+        span = (percent - LEVEL_CRITICAL) / (LEVEL_GOOD - LEVEL_CRITICAL)
+        return mix(red, amber, max(0.0, min(1.0, span)))
 
     @staticmethod
     def _rounded_rect(cr, x, y, width, height, radius) -> None:
@@ -575,6 +694,29 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         cr.arc(x + radius, y + height - radius, radius, 1.5708, 3.1416)
         cr.arc(x + radius, y + radius, radius, 3.1416, 4.7124)
         cr.close_path()
+
+    def _wave_gradient(self, x0: float, x1: float) -> cairo.LinearGradient:
+        """A soft band of light at the current sweep position.
+
+        The band travels from just outside one end to just outside the other,
+        so it enters and leaves rather than appearing and vanishing mid-fill.
+        Charging runs it left to right; draining runs it the other way, which
+        is the whole point of the effect.
+        """
+        span = 1.0 + 2 * WAVE_BAND
+        progress = self._wave_pos if self._battery_charging else 1.0 - self._wave_pos
+        centre = -WAVE_BAND + progress * span
+
+        def clamp(value: float) -> float:
+            return max(0.0, min(1.0, value))
+
+        gradient = cairo.LinearGradient(x0, 0, x1, 0)
+        gradient.add_color_stop_rgba(0.0, 1, 1, 1, 0.0)
+        gradient.add_color_stop_rgba(clamp(centre - WAVE_BAND), 1, 1, 1, 0.0)
+        gradient.add_color_stop_rgba(clamp(centre), 1, 1, 1, WAVE_ALPHA)
+        gradient.add_color_stop_rgba(clamp(centre + WAVE_BAND), 1, 1, 1, 0.0)
+        gradient.add_color_stop_rgba(1.0, 1, 1, 1, 0.0)
+        return gradient
 
     def _draw_battery(self, area: Gtk.DrawingArea, cr, width: int, height: int) -> None:
         """A battery outline whose interior fills with the current charge."""
@@ -599,17 +741,34 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         )
         cr.fill()
 
-        # charge
-        inset = border + 2.5
-        usable = body_w - 2 * inset
-        fill_w = usable * max(0.0, min(100.0, self._battery_percent)) / 100.0
+        # charge — a plain rectangle clipped to the inside of the shell. The
+        # clip does three jobs a shaped path cannot: the fill meets the outline
+        # with no gap, its right edge stays a square waterline at any level,
+        # and it rounds off by itself once it reaches the far end.
+        inset = border  # the inner edge of the stroke, which straddles the path
+        inner_w = body_w - 2 * inset
+        inner_h = body_h - 2 * inset
+        fill_w = inner_w * max(0.0, min(100.0, self._battery_percent)) / 100.0
         if fill_w > 0.5:
-            red, green, blue = self._level_colour(self._battery_percent)
-            cr.set_source_rgb(red, green, blue)
-            self._rounded_rect(
-                cr, inset, inset, max(fill_w, radius * 0.6), body_h - 2 * inset, radius * 0.55
+            red, green, blue = self._level_colour(
+                self._battery_percent, self._battery_charging
             )
+            # Dimming rather than blanking: the geometry stays put, and the
+            # percentage written across the fill stays readable throughout.
+            level = self._blink_level
+            cr.save()
+            self._rounded_rect(cr, inset, inset, inner_w, inner_h, radius - border / 2)
+            cr.clip()
+            cr.set_source_rgb(red * level, green * level, blue * level)
+            cr.rectangle(inset, inset, fill_w, inner_h)
             cr.fill()
+            if self._particle_phase is not None:
+                self._draw_particles(cr, inset, inset, fill_w, inner_h)
+            if self._wave_pos is not None:
+                cr.set_source(self._wave_gradient(inset, inset + fill_w))
+                cr.rectangle(inset, inset, fill_w, inner_h)
+                cr.fill()
+            cr.restore()
 
         # percentage, written inside the shell
         text = f"{int(round(self._battery_percent))}%"
@@ -732,6 +891,7 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         if battery and battery.percent is not None:
             self._battery_percent = float(battery.percent)
             self._battery_charging = battery.charging
+            self._battery_discharging = battery.discharging
             self._battery_area.queue_draw()
             status_key = (battery.status or "unknown").lower()
             status = _(STATUS_LABELS.get(status_key, battery.status or ""))
@@ -744,10 +904,18 @@ class TlpPanelWindow(Adw.ApplicationWindow):
             if remaining:
                 parts.append(remaining)
             self._percent_label.set_label(" · ".join(parts))
+            self._update_blink(present=True)
+            self._update_wave(present=True)
+            self._update_particles(present=True)
         else:
             self._battery_percent = 0.0
             self._battery_area.queue_draw()
             self._percent_label.set_label("—")
+            self._battery_charging = False
+            self._battery_discharging = False
+            self._update_blink(present=False)
+            self._update_wave(present=False)
+            self._update_particles(present=False)
 
         if state.on_ac:
             self._mode_caption.set_label(_("On AC power"))
@@ -755,6 +923,114 @@ class TlpPanelWindow(Adw.ApplicationWindow):
             self._mode_caption.set_label(_("On battery"))
         else:
             self._mode_caption.set_label("")
+
+    def _update_blink(self, present: bool) -> None:
+        """Pulse the fill once the charge is critical.
+
+        Not while charging: a pack climbing back from 3% is recovering, and
+        flashing at someone who has already plugged the cable in tells them
+        nothing they can act on.
+        """
+        wanted = (
+            present
+            and self._battery_percent <= LEVEL_BLINK
+            and not self._battery_charging
+        )
+        playing = self._blink_animation.get_state() == Adw.AnimationState.PLAYING
+        if wanted == playing:
+            return
+
+        if wanted:
+            self._blink_animation.play()
+        else:
+            # Never leave the fill parked mid-pulse.
+            self._blink_animation.reset()
+            self._blink_level = 1.0
+            self._battery_area.queue_draw()
+
+    def _on_blink_frame(self, value: float, *_args) -> None:
+        self._blink_level = value
+        self._battery_area.queue_draw()
+
+    def _update_wave(self, present: bool) -> None:
+        """Sweep the fill while current is actually flowing, either way.
+
+        A pack sitting at its charge limit reports neither, and a still
+        battery has no direction to show.
+        """
+        wanted = present and (self._battery_charging or self._battery_discharging)
+        if wanted == bool(self._wave_timeout):
+            return
+
+        if wanted:
+            # The first sweep waits out a period rather than firing here: this
+            # runs during the first refresh, before the window has a frame
+            # clock, and an animation started then is skipped to its end.
+            self._wave_timeout = GLib.timeout_add_seconds(
+                WAVE_PERIOD_SECONDS, self._wave_tick
+            )
+        else:
+            GLib.source_remove(self._wave_timeout)
+            self._wave_timeout = 0
+            self._wave_animation.reset()
+            self._wave_pos = None
+            self._battery_area.queue_draw()
+
+    def _wave_tick(self) -> bool:
+        self._wave_animation.play()
+        return GLib.SOURCE_CONTINUE
+
+    def _on_wave_frame(self, value: float, *_args) -> None:
+        self._wave_pos = value
+        self._battery_area.queue_draw()
+
+    def _on_wave_done(self, *_args) -> None:
+        # Nothing to overlay between sweeps, so stop drawing one.
+        self._wave_pos = None
+        self._battery_area.queue_draw()
+
+    def _update_particles(self, present: bool) -> None:
+        """Motes only while charging — they are the energy coming in."""
+        wanted = present and self._battery_charging
+        playing = (
+            self._particle_animation.get_state() == Adw.AnimationState.PLAYING
+        )
+        if wanted == playing:
+            return
+
+        if wanted:
+            self._particle_animation.play()
+        else:
+            self._particle_animation.reset()
+            self._particle_phase = None
+            self._battery_area.queue_draw()
+
+    def _on_particle_frame(self, value: float, *_args) -> None:
+        self._particle_phase = value
+        self._battery_area.queue_draw()
+
+    def _draw_particles(self, cr, x: float, y: float, fill_w: float, height: float) -> None:
+        """Motes drifting in at the left, swaying, fading as they cross.
+
+        Clipped to the fill, so one that outlives its fade still stops at the
+        waterline rather than floating out over the empty part of the shell.
+        """
+        phase = self._particle_phase
+        cr.save()
+        cr.rectangle(x, y, fill_w, height)
+        cr.clip()
+        for start, rest, laps, size, sway, cycles in PARTICLES:
+            travel = (phase * laps + start) % 1.0
+            # A quick fade in at the edge so nothing pops into existence, then
+            # a long fade out across the rest of the trip.
+            alpha = PARTICLE_ALPHA * min(1.0, travel / 0.12) * (1.0 - travel) ** PARTICLE_FADE
+            if alpha < 0.01:
+                continue
+            offset = sway * height * math.sin(2 * math.pi * (cycles * travel + start))
+            cr.set_source_rgba(1, 1, 1, alpha * self._blink_level)
+            cr.arc(x + travel * fill_w, y + rest * height + offset, size, 0, 2 * math.pi)
+            cr.fill()
+        cr.restore()
 
     def _update_battery(self, state: backend.PowerState) -> None:
         battery = state.battery
