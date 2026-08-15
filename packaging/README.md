@@ -95,8 +95,8 @@ sha256sum <(curl -sL https://github.com/timemrah/tlp-panel/archive/refs/tags/vX.
 On an Arch machine `updpkgsums` and `makepkg --printsrcinfo > .SRCINFO` do both
 steps. `.SRCINFO` must match `PKGBUILD` or the AUR rejects the push.
 
-`sha256sums` is `SKIP` until the first real tarball exists — replace it before
-the first push, since `SKIP` disables verification for everyone who installs.
+Never leave `sha256sums` as `SKIP` — it disables verification for everyone who
+installs the package.
 
 <br>
 

@@ -14,6 +14,6 @@ pkgbase = tlp-panel
 	depends = tlp
 	depends = polkit
 	source = tlp-panel-0.2.3.tar.gz::https://github.com/timemrah/tlp-panel/archive/refs/tags/v0.2.3.tar.gz
-	sha256sums = SKIP
+	sha256sums = 4487a18cac2a9dbd4ef41f6eff26350e2077934b4115c51b94ff045b2e36eb49
 
 pkgname = tlp-panel
