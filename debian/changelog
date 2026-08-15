@@ -1,3 +1,17 @@
+tlp-panel (0.3.0) unstable; urgency=medium
+
+  * New CPU speed limit control: a slider over the frequency steps the scaling
+    driver actually offers, writing CPU_SCALING_MAX_FREQ_ON_AC and _ON_BAT.
+  * The system mode now drives the frequency ceiling as well. Automatic caps the
+    processor on battery and lifts the cap on AC, Battery saving caps it either
+    way, Full performance lifts it either way. Moving the slider overrides the
+    limit for the power source in use until the next mode change.
+  * Adaptive backlight no longer prints an "unsupported" line; the sliders stay
+    greyed out instead. It shares a card with the CPU speed limit, and the card
+    hides only when both are unavailable.
+
+ -- Mehmet Emrah Tuncel <eylulsibelemrah@gmail.com>  Sat, 16 Aug 2026 00:00:00 +0300
+
 tlp-panel (0.2.3) unstable; urgency=medium
 
   * Ship an AppStream metainfo file. Without one the package installs but stays

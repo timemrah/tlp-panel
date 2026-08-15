@@ -119,6 +119,16 @@
   </requires>
 
   <releases>
+    <release version="0.3.0" date="2026-08-16">
+      <description>
+        <p>
+          A new CPU speed limit slider caps how fast the processor may run,
+          using the frequency steps the machine actually supports. The system
+          mode sets it: automatic caps the processor on battery and lifts the
+          cap on AC, and the two pinned modes cap or lift it either way.
+        </p>
+      </description>
+    </release>
     <release version="0.2.3" date="2026-08-15">
       <description>
         <p>
