@@ -12,7 +12,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
-from . import actions, backend  # noqa: E402
+from . import actions, backend, i18n  # noqa: E402
 from .i18n import N_, _, format_duration  # noqa: E402
 
 REFRESH_SECONDS = 2
@@ -126,7 +126,23 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         self.add_breakpoint(breakpoint_)
 
         self.refresh()
-        GLib.timeout_add_seconds(REFRESH_SECONDS, self._tick)
+        self._refresh_timeout = GLib.timeout_add_seconds(REFRESH_SECONDS, self._tick)
+        # Switching language replaces this window while the app keeps running,
+        # so its timers have to go with it rather than outlive the widgets.
+        self.connect("close-request", self._on_close_request)
+
+    def _on_close_request(self, *_args) -> bool:
+        for attr in (
+            "_refresh_timeout",
+            "_charge_timeout",
+            "_abm_timeout",
+            "_cpu_timeout",
+        ):
+            source = getattr(self, attr, 0)
+            if source:
+                GLib.source_remove(source)
+                setattr(self, attr, 0)
+        return False
 
     def _attach_cards(self, two_columns: bool) -> None:
         """Place the cards in one or two columns, reusing the same widgets."""
@@ -1176,6 +1192,16 @@ def Gio_menu():
     """Build the header menu model."""
     from gi.repository import Gio
 
+    languages = Gio.Menu()
+    for code, label in [(i18n.AUTO, _("System default"))] + [
+        (code, i18n.LANGUAGE_NAMES.get(code, code)) for code in i18n.available_languages()
+    ]:
+        item = Gio.MenuItem.new(label, None)
+        # A target turns these into a radio group tied to the action's state.
+        item.set_action_and_target_value("app.language", GLib.Variant("s", code))
+        languages.append_item(item)
+
     menu = Gio.Menu()
+    menu.append_submenu(_("Language"), languages)
     menu.append(_("About"), "app.about")
     return menu

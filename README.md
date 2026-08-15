@@ -128,6 +128,10 @@ settings survive a reboot.
 | **Sleep idle devices** | Whether idle PCI devices may power down. Your per-device exemptions are left alone. |
 | **Adaptive backlight** | AMD panel power saving, separately for AC and battery. |
 
+The interface follows your locale, and the main menu can pin it to English or
+Türkçe instead. That choice lives in `~/.config/tlp-panel/language` and changes
+nothing about your power settings.
+
 <br>
 
 ## Honest about your hardware

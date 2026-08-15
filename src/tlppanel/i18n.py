@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import locale
 import os
+import pathlib
 
 TRANSLATIONS: dict[str, dict[str, str]] = {
     "tr": {
@@ -62,6 +63,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "tutulabilir; panel bu muafiyetlere dokunmaz.",
         "Off": "Kapalı",
         "On": "Açık",
+        "Language": "Dil",
+        "System default": "Sistem varsayılanı",
         "CPU speed limit": "İşlemci Hız Sınırı",
         "CPU speed limit updated": "İşlemci hız sınırı güncellendi",
         "Caps how fast the processor may run. The system mode sets it: "
@@ -118,13 +121,31 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 }
 
 
+# Shown in their own language, so a speaker recognises theirs in the list.
+LANGUAGE_NAMES = {"en": "English", "tr": "Türkçe"}
+
+# The stored choice when the user wants to follow the system.
+AUTO = "system"
+
+CONFIG_FILE = (
+    pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or pathlib.Path.home() / ".config")
+    / "tlp-panel"
+    / "language"
+)
+
+
+def available_languages() -> list[str]:
+    """Codes the app can display, the source language first."""
+    return ["en"] + sorted(TRANSLATIONS)
+
+
 def _detect_language() -> str:
     for env in ("LC_ALL", "LC_MESSAGES", "LANG"):
         value = os.environ.get(env)
         if value:
             return value.split(".")[0].split("_")[0].lower()
     try:
-        code, _ = locale.getdefaultlocale()
+        code, _encoding = locale.getdefaultlocale()
     except ValueError:
         code = None
     if code:
@@ -132,8 +153,41 @@ def _detect_language() -> str:
     return "en"
 
 
-LANGUAGE = _detect_language()
-_TABLE = TRANSLATIONS.get(LANGUAGE, {})
+def _read_choice() -> str:
+    try:
+        stored = CONFIG_FILE.read_text().strip()
+    except OSError:
+        return AUTO
+    return stored if stored in available_languages() else AUTO
+
+
+def choice() -> str:
+    """The stored preference, which may be AUTO rather than a language."""
+    return CHOICE
+
+
+def set_language(code: str) -> None:
+    """Switch the active table. Widgets built earlier keep their old text."""
+    global CHOICE, LANGUAGE, _TABLE
+    CHOICE = code if code in available_languages() else AUTO
+    LANGUAGE = _detect_language() if CHOICE == AUTO else CHOICE
+    _TABLE = TRANSLATIONS.get(LANGUAGE, {})
+
+
+def save_choice(code: str) -> bool:
+    """Persist the preference. A read-only home is not worth crashing over."""
+    try:
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_FILE.write_text(f"{code}\n")
+    except OSError:
+        return False
+    return True
+
+
+CHOICE = AUTO
+LANGUAGE = "en"
+_TABLE: dict[str, str] = {}
+set_language(_read_choice())
 
 
 def _(text: str) -> str:
