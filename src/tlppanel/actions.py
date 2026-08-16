@@ -144,6 +144,14 @@ def set_wifi_power_saving(ac: str, bat: str, callback: Callable[[bool, str], Non
     _run_privileged([HELPER, "set-wifi", ac, bat], callback)
 
 
+def release_overrides(callback: Callable[[bool, str], None]) -> None:
+    """Comment out the panel's keys where /etc/tlp.conf sets them."""
+    if not helper_available():
+        callback(False, "helper not installed")
+        return
+    _run_privileged([HELPER, "release-overrides"], callback)
+
+
 def apply_mode_preset(preset: str, callback: Callable[[bool, str], None]) -> None:
     """Switch the system mode and the settings it implies, in one step.
 

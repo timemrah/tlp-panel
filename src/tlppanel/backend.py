@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 POWER_SUPPLY = Path("/sys/class/power_supply")
+TLP_USER_CONF = Path("/etc/tlp.conf")
 TLP_RUN_DIR = Path("/run/tlp")
 TLP_LAST_PWR = TLP_RUN_DIR / "last_pwr"
 TLP_RUN_CONF = TLP_RUN_DIR / "run.conf"
@@ -276,6 +277,36 @@ def read_power_state() -> PowerState:
 
 
 # --- extra live values, best effort -----------------------------------------
+
+
+# Every key the panel writes into its drop-in. TLP reads /etc/tlp.d/*.conf
+# before /etc/tlp.conf and the later file wins, so any of these set in
+# /etc/tlp.conf — by hand or by another editor such as TLPUI — takes the
+# setting away from the panel.
+MANAGED_KEY = re.compile(
+    r"^(?:(?:START|STOP)_CHARGE_THRESH_BAT\d+"
+    r"|CPU_SCALING_MAX_FREQ_ON_(?:AC|BAT)"
+    r"|WIFI_PWR_ON_(?:AC|BAT)"
+    r"|RUNTIME_PM_ON_(?:AC|BAT)"
+    r"|AMDGPU_ABM_LEVEL_ON_(?:AC|BAT))$"
+)
+
+
+def read_overriding_keys() -> list[str]:
+    """Panel-managed keys that /etc/tlp.conf sets, and so wins on."""
+    text = _read(TLP_USER_CONF)
+    if not text:
+        return []
+
+    found = set()
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        match = re.match(r"^([A-Z0-9_]+)=", line)
+        if match and MANAGED_KEY.match(match.group(1)):
+            found.add(match.group(1))
+    return sorted(found)
 
 
 def read_abm_level() -> int | None:

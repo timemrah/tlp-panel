@@ -140,6 +140,7 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         self._cpu_user_touched = False
         self._cpu_timeout = 0
         self._on_ac = True
+        self._overriding_keys: list[str] = []
 
         self._toasts = Adw.ToastOverlay()
         self.set_content(self._toasts)
@@ -150,6 +151,7 @@ class TlpPanelWindow(Adw.ApplicationWindow):
 
         self._banner = Adw.Banner()
         self._banner.set_revealed(False)
+        self._banner.connect("button-clicked", self._on_review_overrides)
         toolbar.add_top_bar(self._banner)
 
         scroller = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
@@ -846,6 +848,9 @@ class TlpPanelWindow(Adw.ApplicationWindow):
         self._update_runtime_pm(state)
 
     def _update_banner(self, state: backend.PowerState) -> None:
+        # Only the override banner carries an action; clear it for the rest.
+        self._banner.set_button_label(None)
+
         if not state.tlp.installed:
             self._banner.set_title(
                 f"{_('TLP is not installed')} — {_('Install it with: sudo apt install tlp')}"
@@ -862,6 +867,19 @@ class TlpPanelWindow(Adw.ApplicationWindow):
             self._banner.set_title(_("No battery found"))
             self._banner.set_revealed(True)
             return
+
+        # TLP reads its drop-in directory before /etc/tlp.conf, so anything set
+        # there wins over the panel. Say so rather than letting a control snap
+        # back to a value the user did not choose.
+        self._overriding_keys = backend.read_overriding_keys()
+        if self._overriding_keys and actions.helper_available():
+            self._banner.set_title(
+                _("Some settings are fixed in /etc/tlp.conf and override this panel")
+            )
+            self._banner.set_button_label(_("Review"))
+            self._banner.set_revealed(True)
+            return
+
         self._banner.set_revealed(False)
 
     def _update_hero(self, state: backend.PowerState) -> None:
@@ -1467,6 +1485,36 @@ class TlpPanelWindow(Adw.ApplicationWindow):
             lambda done: actions.apply_mode_preset(key, done),
             messages[key],
         )
+
+    def _on_review_overrides(self, *_args) -> None:
+        """Explain the override, and what taking it over would cost.
+
+        /etc/tlp.conf belongs to the tlp package, so changing it is not the
+        panel's call to make quietly: dpkg will notice, and every later
+        upgrade of tlp will stop to ask the administrator what to do with the
+        file. Worth doing on request, never worth doing behind someone's back.
+        """
+        listed = "\n".join(f"• {key}" for key in self._overriding_keys)
+        dialog = Adw.AlertDialog(
+            heading=_("Settings fixed in /etc/tlp.conf"),
+            body=(
+                f"{_('TLP reads its drop-in files before /etc/tlp.conf, so these keys win over anything set here:')}"
+                f"\n\n{listed}\n\n"
+                f"{_('The panel can comment them out, leaving the lines in place with a note. Be aware that /etc/tlp.conf belongs to the tlp package: once it differs from the packaged version, upgrading tlp will ask you whether to keep your copy.')}"
+            ),
+        )
+        dialog.add_response("cancel", _("Leave them alone"))
+        dialog.add_response("release", _("Comment them out"))
+        dialog.set_response_appearance("release", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+        dialog.connect("response", self._on_review_response)
+        dialog.present(self)
+
+    def _on_review_response(self, _dialog, response: str) -> None:
+        if response != "release":
+            return
+        self._run(actions.release_overrides, N_("Settings in /etc/tlp.conf commented out"))
 
     def _on_full_charge(self, *_args) -> None:
         self._run(actions.full_charge, N_("Charging to 100% this time"))

@@ -8,10 +8,16 @@
 set -eu
 
 CONF_FILE=/etc/tlp.d/90-tlp-panel.conf
+CONF_USR=/etc/tlp.conf
 STATE_DIR=/var/lib/tlp-panel
 ABM_STATE=$STATE_DIR/abm-supported
+USR_BACKUP=$STATE_DIR/tlp.conf.orig
 TLP_BIN=/usr/sbin/tlp
 CPUFREQ_DIR=/sys/devices/system/cpu/cpu0/cpufreq
+
+# Every key the panel manages. Only ever used to find, and comment out, lines
+# in /etc/tlp.conf that would otherwise override the panel's own file.
+MANAGED_RE='^((START|STOP)_CHARGE_THRESH_BAT[0-9]+|CPU_SCALING_MAX_FREQ_ON_(AC|BAT)|WIFI_PWR_ON_(AC|BAT)|RUNTIME_PM_ON_(AC|BAT)|AMDGPU_ABM_LEVEL_ON_(AC|BAT))='
 
 die() {
     echo "$1" >&2
@@ -277,6 +283,42 @@ cmd_apply_preset() {
     echo "system mode ${preset} applied"
 }
 
+# Comment out the panel's keys where /etc/tlp.conf sets them, so its own file
+# is free to take effect.
+#
+# This is the one place that touches /etc/tlp.conf, and it only ever runs when
+# the user asks for it: that file is a dpkg conffile of the tlp package, and
+# modifying it makes upgrades of tlp stop to ask what to do with it. Nothing
+# is deleted — the old lines stay, commented, with the reason beside them.
+cmd_release_overrides() {
+    [ -f "$CONF_USR" ] || die "no user configuration found"
+
+    if ! grep -qE "$MANAGED_RE" "$CONF_USR"; then
+        echo "nothing in ${CONF_USR} overrides the panel"
+        return 0
+    fi
+
+    mkdir -p "$STATE_DIR"
+    if [ ! -f "$USR_BACKUP" ]; then
+        cp -p "$CONF_USR" "$USR_BACKUP"
+        chmod 644 "$USR_BACKUP"
+    fi
+
+    tmp="${CONF_USR}.tlp-panel-tmp.$$"
+    awk -v re="$MANAGED_RE" '
+        $0 ~ re { print "# " $0 "   # commented out by TLP Panel"; next }
+        { print }
+    ' "$CONF_USR" > "$tmp"
+
+    chmod --reference="$CONF_USR" "$tmp" 2>/dev/null || chmod 644 "$tmp"
+    chown --reference="$CONF_USR" "$tmp" 2>/dev/null || true
+    mv "$tmp" "$CONF_USR"
+
+    reapply_tlp
+
+    echo "settings in ${CONF_USR} commented out; a copy of the original is at ${USR_BACKUP}"
+}
+
 cmd_clear() {
     rm -f "$CONF_FILE"
     echo "TLP Panel configuration removed"
@@ -292,6 +334,7 @@ case "$verb" in
     set-wifi) cmd_set_wifi "$@" ;;
     set-runtime-pm) cmd_set_runtime_pm "$@" ;;
     set-cpu-freq) cmd_set_cpu_freq "$@" ;;
+    release-overrides) cmd_release_overrides ;;
     apply-preset) cmd_apply_preset "$@" ;;
     probe) cmd_probe ;;
     clear) cmd_clear ;;

@@ -132,6 +132,13 @@ The interface follows your locale, and the main menu can pin it to English or
 Türkçe instead. That choice lives in `~/.config/tlp-panel/language` and changes
 nothing about your power settings.
 
+TLP reads its drop-in directory *before* `/etc/tlp.conf`, so a key set in that
+file — by hand, or by another editor such as TLPUI — wins over the panel. When
+that happens the panel says so instead of letting a control snap back to a
+value you did not choose, and offers to comment those lines out. It will not do
+that on its own: `/etc/tlp.conf` belongs to the `tlp` package, and once it
+differs from the packaged copy, upgrading `tlp` asks you what to do with it.
+
 <br>
 
 ## Honest about your hardware

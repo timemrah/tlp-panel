@@ -65,6 +65,22 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "On": "Açık",
         "Language": "Dil",
         "System default": "Sistem varsayılanı",
+        "Some settings are fixed in /etc/tlp.conf and override this panel":
+            "Bazı ayarlar /etc/tlp.conf dosyasında sabitlenmiş ve bu paneli geçersiz kılıyor",
+        "Review": "İncele",
+        "Settings fixed in /etc/tlp.conf": "/etc/tlp.conf dosyasında sabitlenmiş ayarlar",
+        "TLP reads its drop-in files before /etc/tlp.conf, so these keys win over anything set here:":
+            "TLP, drop-in dosyalarını /etc/tlp.conf'tan önce okur; bu yüzden şu anahtarlar "
+            "buradan yapılan her ayarı geçersiz kılıyor:",
+        "The panel can comment them out, leaving the lines in place with a note. Be aware that /etc/tlp.conf belongs to the tlp package: once it differs from the packaged version, upgrading tlp will ask you whether to keep your copy.":
+            "Panel bu satırları yorum satırına çevirebilir; satırlar yerinde kalır, yanlarına "
+            "bir not düşülür. Şunu bil: /etc/tlp.conf dosyası tlp paketine aittir. Paketteki "
+            "sürümden farklılaştığı anda, tlp her güncellendiğinde sana kendi kopyanı "
+            "koruyup korumayacağını soracak.",
+        "Leave them alone": "Dokunma",
+        "Comment them out": "Yorum satırına çevir",
+        "Settings in /etc/tlp.conf commented out":
+            "/etc/tlp.conf içindeki ayarlar yorum satırına çevrildi",
         "CPU speed limit": "İşlemci Hız Sınırı",
         "CPU speed limit updated": "İşlemci hız sınırı güncellendi",
         "Caps how fast the processor may run. The system mode sets it: "

@@ -26,8 +26,12 @@ which accepts a fixed set of verbs with validated arguments and writes only to
 .SH FILES
 .TP
 .I /etc/tlp.d/90-tlp-panel.conf
-Settings written by the panel. Read by TLP after its own configuration, so
-these values win.
+Settings written by the panel. TLP reads the drop-in directory before
+.IR /etc/tlp.conf ,
+so a key set in that file — by hand, or by another tool such as TLPUI —
+overrides the panel's value for the same key. The panel reads back the merged
+configuration TLP actually applied, so it shows the value in force rather than
+the one it wrote.
 .TP
 .I /var/lib/tlp-panel/abm-supported
 Whether adaptive backlight can take effect on this display.
