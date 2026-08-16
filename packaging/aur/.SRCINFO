@@ -1,6 +1,6 @@
 pkgbase = tlp-panel
 	pkgdesc = Live power status and quick actions for TLP
-	pkgver = 0.4.0
+	pkgver = 0.5.0
 	pkgrel = 1
 	url = https://github.com/timemrah/tlp-panel
 	arch = any
@@ -14,7 +14,7 @@ pkgbase = tlp-panel
 	depends = libadwaita
 	depends = tlp
 	depends = polkit
-	source = tlp-panel-0.4.0.tar.gz::https://github.com/timemrah/tlp-panel/archive/refs/tags/v0.4.0.tar.gz
-	sha256sums = 6779c69b09e6a74b93c96a7745b0ac2b16c769114ef751d86b8a663dac4d39d3
+	source = tlp-panel-0.5.0.tar.gz::https://github.com/timemrah/tlp-panel/archive/refs/tags/v0.5.0.tar.gz
+	sha256sums = SKIP
 
 pkgname = tlp-panel
