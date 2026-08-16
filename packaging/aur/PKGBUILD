@@ -9,7 +9,7 @@ license=('GPL-3.0-or-later')
 depends=('python' 'python-gobject' 'python-cairo' 'gtk4' 'libadwaita' 'tlp' 'polkit')
 makedepends=('desktop-file-utils' 'appstream')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('0c24075e478f6377889ffd5633c55efc895b735aae24106800ce9c5eb6d24f56')
 
 check() {
   cd "$pkgname-$pkgver"
